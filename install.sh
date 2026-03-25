@@ -39,7 +39,7 @@ fi
 
 # --- 2. PACKAGE INSTALLATION ---
 CORE=(hyprland waybar swww sddm xdg-desktop-portal-hyprland)
-TERM=(kitty starship fastfetch fish)
+TERM=(kitty starship fastfetch)
 UTIL=(grim slurp wl-clipboard polkit-kde-agent bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager)
 FILE=(thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller)
 APPS=(firefox mpv imv pavucontrol btop gnome-disk-utility zed)
@@ -64,36 +64,40 @@ sudo -u "$USER_NAME" yay -S --noconfirm noctalia-shell
 
 # --- 4. COLLOID ICON THEME ---
 COLLOID_SRC="$CONFIG_DIR/colloid-src"
+ICON_DIR="$USER_HOME/.local/share/icons"
+
 if [ ! -d "$COLLOID_SRC" ]; then
     sudo -u "$USER_NAME" git clone --depth 1 https://github.com/Saltyfunnel/colloid.git "$COLLOID_SRC"
 fi
-sudo -u "$USER_NAME" mkdir -p "$USER_HOME/.local/share/icons"
-(cd "$COLLOID_SRC" && sudo -u "$USER_NAME" ./install.sh \
-    -d "$USER_HOME/.local/share/icons" \
+
+sudo -u "$USER_NAME" mkdir -p "$ICON_DIR"
+
+# Run install.sh as the user with HOME set correctly so it can find/write dotfiles
+sudo -u "$USER_NAME" HOME="$USER_HOME" bash "$COLLOID_SRC/install.sh" \
+    -d "$ICON_DIR" \
     -n Colloid-Dynamic \
-    -s default)
+    -s default
 
 # --- 5. GTK DARK THEME ---
 sudo -u "$USER_NAME" mkdir -p "$CONFIG_DIR/gtk-3.0" "$CONFIG_DIR/gtk-4.0"
 
-sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/gtk-3.0/settings.ini' << 'EOF'
+cat > "$CONFIG_DIR/gtk-3.0/settings.ini" << EOF
 [Settings]
 gtk-icon-theme-name=Colloid-Dynamic-Dark
 gtk-theme-name=Adwaita-dark
 gtk-application-prefer-dark-theme=1
-EOF"
+EOF
 
-sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/gtk-4.0/settings.ini' << 'EOF'
+cat > "$CONFIG_DIR/gtk-4.0/settings.ini" << EOF
 [Settings]
 gtk-icon-theme-name=Colloid-Dynamic-Dark
 gtk-theme-name=Adwaita-dark
 gtk-application-prefer-dark-theme=1
-EOF"
+EOF
 
-# --- 6. FISH & QS ---
-sudo -u "$USER_NAME" fish -c "set -U fish_user_paths /usr/bin /usr/local/bin \$fish_user_paths"
+# --- 6. QS SYMLINK ---
 if ! command -v qs &>/dev/null; then
-    QS_BIN=$(pacman -Ql noctalia-qs | grep -E '/usr/bin/qs$' | awk '{print $2}' || true)
+    QS_BIN=$(pacman -Ql noctalia-qs 2>/dev/null | grep -E '/usr/bin/qs$' | awk '{print $2}' || true)
     [[ -n "$QS_BIN" ]] && ln -sf "$QS_BIN" /usr/bin/qs
 fi
 
@@ -113,8 +117,7 @@ systemctl enable --force NetworkManager.service sddm.service bluetooth.service
 mkdir -p /etc/sddm.conf.d
 echo -e "[General]\nDisplayServer=wayland" > /etc/sddm.conf.d/10-wayland.conf
 
-if ! grep -q "/usr/bin/fish" /etc/shells; then echo "/usr/bin/fish" >> /etc/shells; fi
-chsh -s /usr/bin/fish "$USER_NAME"
+chsh -s /bin/bash "$USER_NAME"
 
 # --- OWNERSHIP FIX ---
 chown -R "$USER_NAME:$USER_NAME" "$USER_HOME"

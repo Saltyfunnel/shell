@@ -376,6 +376,8 @@ env = WLR_NO_HARDWARE_CURSORS,1
 env = __GL_GSYNC_ALLOWED,1
 env = __GL_VRR_ALLOWED,1
 env = QT_QPA_PLATFORM,wayland
+env = QT_QPA_PLATFORMTHEME,gtk3
+env = QS_ICON_THEME,Colloid-Dynamic-Dark
 cursor { no_hardware_cursors = true }
 EOF
 elif echo "$GPU_INFO" | grep -qi amd; then
@@ -383,12 +385,16 @@ elif echo "$GPU_INFO" | grep -qi amd; then
 env = LIBVA_DRIVER_NAME,radeonsi
 env = XDG_SESSION_TYPE,wayland
 env = QT_QPA_PLATFORM,wayland
+env = QT_QPA_PLATFORMTHEME,gtk3
+env = QS_ICON_THEME,Colloid-Dynamic-Dark
 EOF
 elif echo "$GPU_INFO" | grep -qi intel; then
     sudo -u "$USER_NAME" tee -a "$GPU_ENV_FILE" > /dev/null << 'EOF'
 env = LIBVA_DRIVER_NAME,iHD
 env = XDG_SESSION_TYPE,wayland
 env = QT_QPA_PLATFORM,wayland
+env = QT_QPA_PLATFORMTHEME,gtk3
+env = QS_ICON_THEME,Colloid-Dynamic-Dark
 EOF
 else
     sudo -u "$USER_NAME" tee -a "$GPU_ENV_FILE" > /dev/null << 'EOF'

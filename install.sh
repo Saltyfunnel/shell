@@ -18,7 +18,7 @@ BBLU="\e[94m"; BMAG="\e[95m"; BCYN="\e[96m"; BWHT="\e[97m"
 BLD="\e[1m"; DIM="\e[2m"; ITL="\e[3m"; UND="\e[4m"
 
 STEP=0
-TOTAL_STEPS=10
+TOTAL_STEPS=9
 
 ################################################################################
 # HELPER FUNCTIONS
@@ -186,9 +186,7 @@ UTILITY_PACKAGES=(
     bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager
     mako libnotify
 )
-FILE_PACKAGES=(
-    thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller exo
-)
+FILE_PACKAGES=(yazi file-roller unarchiver unar)
 APP_PACKAGES=(firefox mpv imv pavucontrol btop gnome-disk-utility zed)
 DEV_PACKAGES=(git base-devel wget curl nano jq)
 FONT_PACKAGES=(ttf-jetbrains-mono-nerd ttf-hack-nerd ttf-iosevka-nerd ttf-cascadia-code-nerd)
@@ -290,6 +288,7 @@ for dir in "${CONFIG_DIRS[@]}"; do
 done
 
 sudo -u "$USER_NAME" mkdir -p "$USER_HOME/Pictures/Wallpapers"
+sudo -u "$USER_NAME" mkdir -p "$USER_HOME/.local/share/applications"
 sudo -u "$USER_NAME" mkdir -p "$USER_HOME/.local/share/icons"
 print_ok "Directory tree created"
 
@@ -340,22 +339,46 @@ EOF
     print_ok "Fallback kitty config written"
 fi
 
-# GTK dark theme
+# GTK dark theme — noctalia will manage colors via noctalia.css,
+# adw-gtk3-dark is the theme that actually reads those CSS variables
 sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/gtk-3.0/settings.ini' << 'EOF'
 [Settings]
 gtk-icon-theme-name=Colloid-Dynamic-Dark
-gtk-theme-name=Adwaita-dark
+gtk-theme-name=adw-gtk3-dark
 gtk-application-prefer-dark-theme=1
 EOF"
-print_ok "GTK3 dark theme configured"
+print_ok "GTK3 theme configured  (adw-gtk3-dark)"
 
 sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/gtk-4.0/settings.ini' << 'EOF'
 [Settings]
 gtk-icon-theme-name=Colloid-Dynamic-Dark
-gtk-theme-name=Adwaita-dark
+gtk-theme-name=adw-gtk3-dark
 gtk-application-prefer-dark-theme=1
 EOF"
-print_ok "GTK4 dark theme configured"
+print_ok "GTK4 theme configured  (adw-gtk3-dark)"
+
+# gsettings for apps that read dconf instead of settings.ini
+sudo -u "$USER_NAME" bash -c "
+    export DBUS_SESSION_BUS_ADDRESS=\${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/\$(id -u)/bus}
+    gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark' 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface icon-theme 'Colloid-Dynamic-Dark' 2>/dev/null || true
+" && print_ok "gsettings configured" || print_info "gsettings skipped  (no dbus session — will apply on first login)"
+
+# Yazi desktop entry for noctalia launcher
+sudo -u "$USER_NAME" bash -c "cat > '$USER_HOME/.local/share/applications/yazi.desktop' << 'EOF'
+[Desktop Entry]
+Name=Yazi
+Comment=Terminal file manager
+Exec=yazi
+Icon=system-file-manager
+Terminal=true
+Type=Application
+Categories=System;FileManager;
+EOF"
+print_ok "Yazi desktop entry written"
+
+sudo -u "$USER_NAME" update-desktop-database "$USER_HOME/.local/share/applications" 2>/dev/null || true
 
 ################################################################################
 # 6. GPU-SPECIFIC ENVIRONMENT
@@ -400,38 +423,26 @@ else
     sudo -u "$USER_NAME" tee -a "$GPU_ENV_FILE" > /dev/null << 'EOF'
 env = XDG_SESSION_TYPE,wayland
 env = QT_QPA_PLATFORM,wayland
+env = QT_QPA_PLATFORMTHEME,gtk3
+env = QS_ICON_THEME,Colloid-Dynamic-Dark
 EOF
 fi
 print_ok "GPU env written  →  hypr/gpu-env.conf"
 
 ################################################################################
-# 7. NOCTALIA COLOR CONFIG
+# 7. NOCTALIA COLOR CONFIG & TERMINAL
 ################################################################################
 
-print_phase "Noctalia color config"
+print_phase "Noctalia config"
 
-# Drops your palette into quickshell's expected config location.
-# NOTE: The exact QML structure depends on how noctalia-shell reads colors.
-# Verify the property names against your installed noctalia source and
-# update this block if needed before running.
-
-NOC_COLOR_FILE="$CONFIG_DIR/quickshell/noctalia/colors.qml"
-
-sudo -u "$USER_NAME" bash -c "cat > '$NOC_COLOR_FILE' << 'EOF'
-pragma Singleton
-import QtQuick
-
-QtObject {
-    // background
-    readonly property color bg:     \"${NOC_BG}\"
-    // foreground / text
-    readonly property color fg:     \"${NOC_FG}\"
-    // accent / highlight
-    readonly property color accent: \"${NOC_ACCENT}\"
-}
-EOF"
-print_ok "colors.qml written  →  quickshell/noctalia/colors.qml"
-print_info "Verify property names match noctalia-shell source before first boot"
+# Patch terminal command to kitty — noctalia defaults to alacritty
+NOCTALIA_SETTINGS="$CONFIG_DIR/noctalia/settings.json"
+if [[ -f "$NOCTALIA_SETTINGS" ]]; then
+    sudo -u "$USER_NAME" sed -i 's/"terminalCommand": "alacritty -e"/"terminalCommand": "kitty -e"/' "$NOCTALIA_SETTINGS"
+    print_ok "Noctalia terminal set to kitty"
+else
+    print_info "settings.json not yet written — kitty patch will need manual apply after first launch"
+fi
 
 # Static mako config using noctalia palette
 sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/mako/config' << 'EOF'
@@ -492,30 +503,6 @@ wait $! || print_err "Colloid install failed  →  /tmp/hypr_install_log"
 print_ok "Colloid-Dynamic icons installed"
 
 ################################################################################
-# 10. THUNAR CUSTOM ACTIONS
-################################################################################
-
-print_phase "Thunar custom actions"
-
-sudo -u "$USER_NAME" mkdir -p "$CONFIG_DIR/Thunar"
-
-sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/Thunar/uca.xml' << 'EOF'
-<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<actions>
-<action>
-    <icon>kitty</icon>
-    <name>Open Kitty Here</name>
-    <unique-id>kitty-open-here</unique-id>
-    <command>kitty --directory %f</command>
-    <description>Open Kitty terminal in this directory</description>
-    <patterns>*</patterns>
-    <directories/>
-</action>
-</actions>
-EOF"
-print_ok "Thunar 'Open Kitty Here' action configured"
-
-################################################################################
 # SHELL & SERVICES
 ################################################################################
 
@@ -533,7 +520,7 @@ alias rm='rm -i'
 alias mv='mv -i'
 alias cp='cp -i'
 EOF"
-print_ok "Shell configured  (bash, no pywal sequences)"
+print_ok "Shell configured  (bash)"
 
 systemctl enable ly@tty2.service        2>/dev/null && print_ok "ly enabled"             || true
 systemctl enable bluetooth.service      2>/dev/null && print_ok "bluetooth enabled"      || true
@@ -564,9 +551,9 @@ _row "${#ALL_PACKAGES[@]} packages"          "pacman"
 _row "noctalia-shell"                        "AUR · quickshell bar"
 _row "dotfiles deployed"                     "~/.config/*"
 _row "gpu environment"                       "hypr/gpu-env.conf"
-_row "gtk3 & gtk4 dark theme"               "Adwaita-dark"
+_row "gtk3 & gtk4 theme"                    "adw-gtk3-dark"
 _row "colloid-dynamic icons"                 "~/.local/share/icons"
-_row "noctalia colors"                       "quickshell/noctalia/colors.qml"
+_row "yazi"                                  "terminal file manager · kitty"
 _row "mako notifications"                    "static · noctalia palette"
 _row "ly · bluetooth · NetworkManager"      "systemctl enable"
 
@@ -578,8 +565,8 @@ echo -e "    ${BLD}next${RST}"
 echo ""
 echo -e "    ${BCYN}1${RST}  ${DIM}reboot${RST}                    ${BBLK}sudo reboot${RST}"
 echo -e "    ${BCYN}2${RST}  ${DIM}select session at ly${RST}       ${BBLK}Hyprland${RST}"
-echo -e "    ${BCYN}3${RST}  ${DIM}verify colors.qml${RST}          ${BBLK}~/.config/quickshell/noctalia/colors.qml${RST}"
-echo -e "    ${BCYN}4${RST}  ${DIM}set wallpaper${RST}              ${BBLK}via noctalia wall picker${RST}"
+echo -e "    ${BCYN}3${RST}  ${DIM}set wallpaper${RST}              ${BBLK}via noctalia wall picker${RST}"
+echo -e "    ${BCYN}4${RST}  ${DIM}if noctalia terminal wrong${RST}  ${BBLK}set terminalCommand to 'kitty -e' in noctalia settings${RST}"
 
 echo ""
 hr
@@ -591,7 +578,7 @@ echo ""
 _bind "super + return"        "terminal"
 _bind "super + d"             "launcher"
 _bind "super + q"             "close window"
-_bind "super + f"             "file manager"
+_bind "super + f"             "file manager  (yazi)"
 _bind "super + w"             "wallpaper picker"
 _bind "super + b / c / i"    "browser · editor · monitor"
 _bind "super + v"             "toggle float"

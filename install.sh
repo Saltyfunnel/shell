@@ -181,7 +181,7 @@ CORE_PACKAGES=(
 )
 TERMINAL_PACKAGES=(kitty starship fastfetch)
 UTILITY_PACKAGES=(
-    grim slurp wl-clipboard polkit-gnome
+    grim slurp wl-clipboard polkit-kde-agent
     bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager
     mako libnotify
 )
@@ -276,7 +276,6 @@ CONFIG_DIRS=(
     "$CONFIG_DIR/kitty"
     "$CONFIG_DIR/fastfetch"
     "$CONFIG_DIR/mako"
-    "$CONFIG_DIR/scripts"
     "$CONFIG_DIR/btop"
     "$CONFIG_DIR/gtk-3.0"
     "$CONFIG_DIR/gtk-4.0"
@@ -290,8 +289,6 @@ for dir in "${CONFIG_DIRS[@]}"; do
 done
 
 sudo -u "$USER_NAME" mkdir -p "$USER_HOME/Pictures/Wallpapers"
-sudo -u "$USER_NAME" mkdir -p "$USER_HOME/.local/share/nemo/actions"
-sudo -u "$USER_NAME" mkdir -p "$USER_HOME/.local/share/icons"
 print_ok "Directory tree created"
 
 ################################################################################
@@ -320,52 +317,9 @@ print_phase "Configuration files"
     run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/btop/btop.conf' '$CONFIG_DIR/btop/btop.conf'" \
     "btop config"
 
-if [[ ! -f "$CONFIG_DIR/kitty/kitty.conf" ]]; then
-    cat > "$CONFIG_DIR/kitty/kitty.conf" << EOF
-font_family      Hack Nerd Font
-font_size        11.0
-window_padding_width 8
-confirm_os_window_close 0
-enable_audio_bell no
-tab_bar_edge bottom
-tab_bar_style powerline
-tab_powerline_style slanted
-repaint_delay 10
-input_delay 3
-sync_to_monitor yes
-background            ${NOC_BG}
-foreground            ${NOC_FG}
-EOF
-    chown "$USER_NAME:$USER_NAME" "$CONFIG_DIR/kitty/kitty.conf"
-    print_ok "Fallback kitty config written"
-fi
-
-# GTK settings — adw-gtk3-dark reads CSS vars noctalia writes
-cat > "$CONFIG_DIR/gtk-3.0/settings.ini" << 'EOF'
-[Settings]
-gtk-icon-theme-name=Colloid-Dynamic-Dark
-gtk-theme-name=adw-gtk3-dark
-gtk-application-prefer-dark-theme=1
-EOF
-chown "$USER_NAME:$USER_NAME" "$CONFIG_DIR/gtk-3.0/settings.ini"
-print_ok "GTK3 theme configured  (adw-gtk3-dark)"
-
-cat > "$CONFIG_DIR/gtk-4.0/settings.ini" << 'EOF'
-[Settings]
-gtk-icon-theme-name=Colloid-Dynamic-Dark
-gtk-theme-name=adw-gtk3-dark
-gtk-application-prefer-dark-theme=1
-EOF
-chown "$USER_NAME:$USER_NAME" "$CONFIG_DIR/gtk-4.0/settings.ini"
-print_ok "GTK4 theme configured  (adw-gtk3-dark)"
-
-sudo -u "$USER_NAME" bash -c "
-    export DBUS_SESSION_BUS_ADDRESS=\${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/\$(id -u)/bus}
-    gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark' 2>/dev/null || true
-    gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' 2>/dev/null || true
-    gsettings set org.gnome.desktop.interface icon-theme 'Colloid-Dynamic-Dark' 2>/dev/null || true
-    gsettings set org.nemo.desktop show-desktop-icons false 2>/dev/null || true
-" && print_ok "gsettings configured" || print_info "gsettings skipped  (no dbus session — will apply on first login)"
+[[ -f "$CONFIGS_DIR/kitty/kitty.conf" ]] && \
+run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/kitty/kitty.conf' '$CONFIG_DIR/kitty/kitty.conf'" \
+    "Kitty config"
 
 ################################################################################
 # 6. GPU-SPECIFIC ENVIRONMENT
@@ -418,203 +372,15 @@ fi
 print_ok "GPU env written  →  hypr/gpu-env.conf"
 
 ################################################################################
-# 7. NOCTALIA CONFIG & NEMO TEMPLATE
+# 7. COPY WALLPAPERS
 ################################################################################
-
-print_phase "Noctalia config & Nemo theming"
-
-NOCTALIA_SETTINGS="$CONFIG_DIR/noctalia/settings.json"
-if [[ -f "$NOCTALIA_SETTINGS" ]]; then
-    sed -i 's/"terminalCommand": "alacritty -e"/"terminalCommand": "kitty -e"/' "$NOCTALIA_SETTINGS"
-    print_ok "Noctalia terminal set to kitty"
-else
-    print_info "settings.json not yet written — set terminalCommand to 'kitty -e' after first launch"
-fi
-
-# Nemo CSS template — written directly to avoid heredoc quoting issues with braces
-NEMO_TPL="$CONFIG_DIR/noctalia/templates/nemo.css"
-cat > "$NEMO_TPL" << 'TPLEOF'
-/* Nemo — noctalia Material You theme — auto-generated, do not edit */
-* {
-    background-color: {{colors.surface.default.hex}};
-    color: {{colors.on_surface.default.hex}};
-}
-headerbar,
-.titlebar {
-    background-color: {{colors.surface_container_high.default.hex}};
-    color: {{colors.on_surface.default.hex}};
-    border-bottom: 1px solid {{colors.outline_variant.default.hex}};
-}
-.sidebar,
-.places-sidebar {
-    background-color: {{colors.surface_container.default.hex}};
-    color: {{colors.on_surface_variant.default.hex}};
-}
-.sidebar row:selected,
-.places-sidebar row:selected {
-    background-color: {{colors.primary.default.hex}};
-    color: {{colors.on_primary.default.hex}};
-}
-.nemo-window .view,
-.nemo-window iconview,
-.nemo-window treeview {
-    background-color: {{colors.surface.default.hex}};
-    color: {{colors.on_surface.default.hex}};
-}
-.nemo-window .view:selected,
-.nemo-window iconview:selected,
-.nemo-window treeview:selected {
-    background-color: {{colors.primary_container.default.hex}};
-    color: {{colors.on_primary_container.default.hex}};
-}
-.nemo-pathbar,
-.nemo-pathbar button {
-    background-color: {{colors.surface_container_highest.default.hex}};
-    color: {{colors.on_surface.default.hex}};
-    border: 1px solid {{colors.outline_variant.default.hex}};
-}
-entry {
-    background-color: {{colors.surface_container_highest.default.hex}};
-    color: {{colors.on_surface.default.hex}};
-    border: 1px solid {{colors.outline.default.hex}};
-}
-button {
-    background-color: {{colors.surface_container_high.default.hex}};
-    color: {{colors.on_surface.default.hex}};
-    border: 1px solid {{colors.outline_variant.default.hex}};
-}
-button:hover {
-    background-color: {{colors.primary_container.default.hex}};
-    color: {{colors.on_primary_container.default.hex}};
-}
-tooltip {
-    background-color: {{colors.surface_container_highest.default.hex}};
-    color: {{colors.on_surface.default.hex}};
-    border: 1px solid {{colors.outline_variant.default.hex}};
-}
-TPLEOF
-chown "$USER_NAME:$USER_NAME" "$NEMO_TPL"
-print_ok "Nemo CSS template written"
-
-# Write user-templates.toml using python3 to avoid heredoc quoting issues
-TOML_FILE="$CONFIG_DIR/noctalia/user-templates.toml"
-TOML_ENTRY='[templates.nemo]
-input_path = "~/.config/noctalia/templates/nemo.css"
-output_path = "~/.config/gtk-3.0/gtk.css"
-post_hook = "nemo -q 2>/dev/null || true; sleep 0.5; nemo -n &"'
-
-if [[ ! -f "$TOML_FILE" ]]; then
-    python3 -c "
-content = '[config]\n\n' + '''$TOML_ENTRY'''
-open('$TOML_FILE', 'w').write(content)
-"
-    chown "$USER_NAME:$USER_NAME" "$TOML_FILE"
-    print_ok "user-templates.toml created with nemo entry"
-elif ! grep -q '\[templates.nemo\]' "$TOML_FILE"; then
-    python3 -c "
-entry = '\n\n' + '''$TOML_ENTRY'''
-open('$TOML_FILE', 'a').write(entry)
-"
-    print_ok "Nemo template entry appended to user-templates.toml"
-else
-    print_ok "Nemo template entry already present in user-templates.toml"
-fi
-print_info "Enable user templates: noctalia settings → color scheme → templates → advanced"
-
-# Mako config
-cat > "$CONFIG_DIR/mako/config" << EOF
-background-color=${NOC_BG}ee
-text-color=${NOC_FG}
-border-color=${NOC_ACCENT}
-border-radius=6
-border-size=1
-font=Hack Nerd Font 11
-width=320
-height=100
-margin=12
-padding=12
-default-timeout=5000
-layer=overlay
-anchor=top-right
-EOF
-chown "$USER_NAME:$USER_NAME" "$CONFIG_DIR/mako/config"
-print_ok "mako config written with noctalia palette"
-
-################################################################################
-# 8. SCRIPTS & WALLPAPERS
-################################################################################
-
-print_phase "Scripts & wallpapers"
-
-[[ -d "$SCRIPTS_SRC" ]] && \
-    run_command "sudo -u $USER_NAME cp -rf '$SCRIPTS_SRC/'* '$CONFIG_DIR/scripts/' && chmod +x '$CONFIG_DIR/scripts/'* 2>/dev/null || true" \
-    "User scripts"
 
 [[ -d "$WALLPAPERS_SRC" ]] && \
     run_command "sudo -u $USER_NAME cp -rf '$WALLPAPERS_SRC/'* '$USER_HOME/Pictures/Wallpapers/'" \
     "Wallpapers"
 
 ################################################################################
-# 9. COLLOID ICON THEME
-################################################################################
-
-print_phase "Colloid icon theme"
-
-COLLOID_SRC="$CONFIG_DIR/colloid-src"
-ICON_DIR="$USER_HOME/.local/share/icons"
-
-mkdir -p "$COLLOID_SRC" "$ICON_DIR"
-chown "$USER_NAME:$USER_NAME" "$COLLOID_SRC" "$ICON_DIR"
-
-if [ ! -d "$COLLOID_SRC/.git" ]; then
-    run_command "sudo -u $USER_NAME git clone --depth 1 https://github.com/Saltyfunnel/colloid.git '$COLLOID_SRC'" \
-        "Cloning Colloid icon theme"
-fi
-
-(cd "$COLLOID_SRC" && sudo -u "$USER_NAME" HOME="$USER_HOME" bash install.sh \
-    -d "$ICON_DIR" \
-    -n Colloid-Dynamic \
-    -s default) \
-    > /tmp/hypr_install_log 2>&1 &
-spinner "$!" "Installing Colloid-Dynamic icons"
-wait $! || print_err "Colloid install failed  →  /tmp/hypr_install_log"
-print_ok "Colloid-Dynamic icons installed"
-
-################################################################################
-# 10. NEMO CUSTOM ACTIONS
-################################################################################
-
-print_phase "Nemo custom actions"
-
-NEMO_ACTIONS_DIR="$USER_HOME/.local/share/nemo/actions"
-
-cat > "$NEMO_ACTIONS_DIR/open-kitty-dir.nemo_action" << 'EOF'
-[Nemo Action]
-Name=Open Kitty Here
-Comment=Open Kitty terminal in this directory
-Exec=kitty --directory %F
-Icon-Name=kitty
-Selection=none
-Extensions=dir;
-EOF
-
-cat > "$NEMO_ACTIONS_DIR/open-kitty-file.nemo_action" << 'EOF'
-[Nemo Action]
-Name=Open Kitty Here
-Comment=Open Kitty terminal in this directory
-Exec=kitty --directory %d
-Icon-Name=kitty
-Selection=any
-Extensions=any;
-EOF
-
-chown "$USER_NAME:$USER_NAME" \
-    "$NEMO_ACTIONS_DIR/open-kitty-dir.nemo_action" \
-    "$NEMO_ACTIONS_DIR/open-kitty-file.nemo_action"
-print_ok "Nemo actions configured  (open kitty here)"
-
-################################################################################
-# SHELL & SERVICES
+# 8. SHELL & SERVICES
 ################################################################################
 
 cat > "$USER_HOME/.bashrc" << 'EOF'

@@ -107,7 +107,6 @@ CONFIG_DIR="$USER_HOME/.config"
 CACHE_DIR="$USER_HOME/.cache"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPTS_SRC="$REPO_ROOT/scripts"
 CONFIGS_SRC="$REPO_ROOT/configs"
 WALLPAPERS_SRC="$REPO_ROOT/Pictures/Wallpapers"
 
@@ -179,15 +178,11 @@ CORE_PACKAGES=(
     hyprland ly
     xdg-desktop-portal-hyprland
 )
-TERMINAL_PACKAGES=(kitty starship fastfetch)
+TERMINAL_PACKAGES=(kitty starship fastfetch yazi)
 UTILITY_PACKAGES=(
-    grim slurp wl-clipboard polkit-kde-agent
+    grim slurp wl-clipboard polkit-gnome
     bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager
     mako libnotify
-)
-FILE_PACKAGES=(
-    nemo nemo-fileroller
-    file-roller ffmpegthumbnailer
 )
 APP_PACKAGES=(firefox mpv imv pavucontrol btop gnome-disk-utility zed)
 DEV_PACKAGES=(git base-devel wget curl nano jq)
@@ -199,7 +194,7 @@ QT_PACKAGES=(qt5-wayland qt6-wayland)
 
 ALL_PACKAGES=(
     "${CORE_PACKAGES[@]}" "${TERMINAL_PACKAGES[@]}" "${UTILITY_PACKAGES[@]}"
-    "${FILE_PACKAGES[@]}" "${APP_PACKAGES[@]}" "${DEV_PACKAGES[@]}"
+    "${APP_PACKAGES[@]}" "${DEV_PACKAGES[@]}"
     "${FONT_PACKAGES[@]}" "${MEDIA_PACKAGES[@]}" "${COMPRESSION_PACKAGES[@]}"
     "${PYTHON_PACKAGES[@]}" "${QT_PACKAGES[@]}"
 )
@@ -209,7 +204,6 @@ declare -A GROUP_LABELS=(
     ["Core WM"]="${CORE_PACKAGES[*]}"
     ["Terminal"]="${TERMINAL_PACKAGES[*]}"
     ["Utilities"]="${UTILITY_PACKAGES[*]}"
-    ["Files"]="${FILE_PACKAGES[*]}"
     ["Apps"]="${APP_PACKAGES[*]}"
     ["Dev Tools"]="${DEV_PACKAGES[*]}"
     ["Fonts"]="${FONT_PACKAGES[*]}"
@@ -219,7 +213,7 @@ declare -A GROUP_LABELS=(
     ["Qt/Wayland"]="${QT_PACKAGES[*]}"
 )
 
-for label in "Core WM" "Terminal" "Utilities" "Files" "Apps" "Dev Tools" "Fonts" "Media" "Archives" "Python" "Qt/Wayland"; do
+for label in "Core WM" "Terminal" "Utilities" "Apps" "Dev Tools" "Fonts" "Media" "Archives" "Python" "Qt/Wayland"; do
     echo -e "  ${BBLU}${label}${RST}  ${DIM}${GROUP_LABELS[$label]}${RST}"
 done
 echo ""
@@ -275,7 +269,6 @@ CONFIG_DIRS=(
     "$CONFIG_DIR/hypr"
     "$CONFIG_DIR/kitty"
     "$CONFIG_DIR/fastfetch"
-    "$CONFIG_DIR/mako"
     "$CONFIG_DIR/btop"
     "$CONFIG_DIR/gtk-3.0"
     "$CONFIG_DIR/gtk-4.0"
@@ -316,10 +309,6 @@ print_phase "Configuration files"
 [[ -f "$CONFIGS_SRC/btop/btop.conf" ]] && \
     run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/btop/btop.conf' '$CONFIG_DIR/btop/btop.conf'" \
     "btop config"
-
-[[ -f "$CONFIGS_DIR/kitty/kitty.conf" ]] && \
-run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/kitty/kitty.conf' '$CONFIG_DIR/kitty/kitty.conf'" \
-    "Kitty config"
 
 ################################################################################
 # 6. GPU-SPECIFIC ENVIRONMENT

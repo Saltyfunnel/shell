@@ -270,8 +270,6 @@ CONFIG_DIRS=(
     "$CONFIG_DIR/kitty"
     "$CONFIG_DIR/fastfetch"
     "$CONFIG_DIR/btop"
-    "$CONFIG_DIR/gtk-3.0"
-    "$CONFIG_DIR/gtk-4.0"
     "$CONFIG_DIR/quickshell/noctalia"
     "$CONFIG_DIR/noctalia/templates"
 )

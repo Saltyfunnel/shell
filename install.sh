@@ -187,8 +187,7 @@ UTILITY_PACKAGES=(
     mako libnotify
 )
 FILE_PACKAGES=(
-    nemo nemo-fileroller nemo-preview
-    file-roller ffmpegthumbnailer
+    nemo nemo-fileroller file-roller ffmpegthumbnailer
 )
 APP_PACKAGES=(firefox mpv imv pavucontrol btop gnome-disk-utility zed)
 DEV_PACKAGES=(git base-devel wget curl nano jq)

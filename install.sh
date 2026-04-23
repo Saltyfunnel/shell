@@ -331,7 +331,7 @@ env = __GL_GSYNC_ALLOWED,1
 env = __GL_VRR_ALLOWED,1
 env = QT_QPA_PLATFORM,wayland
 env = QT_QPA_PLATFORMTHEME,gtk3
-env = QS_ICON_THEME,Colloid-Dynamic-Dark
+env = QS_ICON_THEME,Adwaita
 cursor { no_hardware_cursors = true }
 EOF
 elif echo "$GPU_INFO" | grep -qi amd; then
@@ -340,7 +340,7 @@ env = LIBVA_DRIVER_NAME,radeonsi
 env = XDG_SESSION_TYPE,wayland
 env = QT_QPA_PLATFORM,wayland
 env = QT_QPA_PLATFORMTHEME,gtk3
-env = QS_ICON_THEME,Colloid-Dynamic-Dark
+env = QS_ICON_THEME,Adwaita
 EOF
 elif echo "$GPU_INFO" | grep -qi intel; then
     cat >> "$GPU_ENV_FILE" << 'EOF'
@@ -348,14 +348,14 @@ env = LIBVA_DRIVER_NAME,iHD
 env = XDG_SESSION_TYPE,wayland
 env = QT_QPA_PLATFORM,wayland
 env = QT_QPA_PLATFORMTHEME,gtk3
-env = QS_ICON_THEME,Colloid-Dynamic-Dark
+env = QS_ICON_THEME,Adwaita
 EOF
 else
     cat >> "$GPU_ENV_FILE" << 'EOF'
 env = XDG_SESSION_TYPE,wayland
 env = QT_QPA_PLATFORM,wayland
 env = QT_QPA_PLATFORMTHEME,gtk3
-env = QS_ICON_THEME,Colloid-Dynamic-Dark
+env = QS_ICON_THEME,Adwaita
 EOF
 fi
 print_ok "GPU env written  →  hypr/gpu-env.conf"

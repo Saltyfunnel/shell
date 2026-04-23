@@ -111,7 +111,6 @@ SCRIPTS_SRC="$REPO_ROOT/scripts"
 CONFIGS_SRC="$REPO_ROOT/configs"
 WALLPAPERS_SRC="$REPO_ROOT/Pictures/Wallpapers"
 
-# Noctalia palette — update these if your colors change
 NOC_BG="#1b0b1b"
 NOC_FG="#c6c2c6"
 NOC_ACCENT="#2596be"
@@ -182,12 +181,13 @@ CORE_PACKAGES=(
 )
 TERMINAL_PACKAGES=(kitty starship fastfetch)
 UTILITY_PACKAGES=(
-    grim slurp wl-clipboard polkit-kde-agent
+    grim slurp wl-clipboard polkit-gnome
     bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager
     mako libnotify
 )
 FILE_PACKAGES=(
-    nemo nemo-fileroller file-roller ffmpegthumbnailer
+    nemo nemo-fileroller
+    file-roller ffmpegthumbnailer
 )
 APP_PACKAGES=(firefox mpv imv pavucontrol btop gnome-disk-utility zed)
 DEV_PACKAGES=(git base-devel wget curl nano jq)
@@ -253,7 +253,6 @@ spinner "$!" "Installing noctalia-shell"
 wait $! || print_err "AUR install failed  →  /tmp/hypr_install_log"
 print_ok "noctalia-shell installed"
 
-# Symlink qs if not already in PATH
 if ! command -v qs &>/dev/null; then
     QS_BIN=$(pacman -Ql noctalia-shell 2>/dev/null | grep -E '/usr/bin/qs$' | awk '{print $2}' || true)
     if [[ -n "$QS_BIN" ]]; then
@@ -301,30 +300,28 @@ print_ok "Directory tree created"
 
 print_phase "Configuration files"
 
-# Deploy configs from repo
-[[ -d "$CONFIGS_SRC/hypr"                   ]] && \
+[[ -d "$CONFIGS_SRC/hypr" ]] && \
     run_command "sudo -u $USER_NAME cp -rf '$CONFIGS_SRC/hypr/'* '$CONFIG_DIR/hypr/'" \
     "Hyprland config"
 
-[[ -f "$CONFIGS_SRC/kitty/kitty.conf"        ]] && \
+[[ -f "$CONFIGS_SRC/kitty/kitty.conf" ]] && \
     run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/kitty/kitty.conf' '$CONFIG_DIR/kitty/kitty.conf'" \
     "Kitty config"
 
-[[ -f "$CONFIGS_SRC/fastfetch/config.jsonc"  ]] && \
+[[ -f "$CONFIGS_SRC/fastfetch/config.jsonc" ]] && \
     run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/fastfetch/config.jsonc' '$CONFIG_DIR/fastfetch/config.jsonc'" \
     "Fastfetch config"
 
-[[ -f "$CONFIGS_SRC/starship/starship.toml"  ]] && \
+[[ -f "$CONFIGS_SRC/starship/starship.toml" ]] && \
     run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/starship/starship.toml' '$CONFIG_DIR/starship.toml'" \
     "Starship config"
 
-[[ -f "$CONFIGS_SRC/btop/btop.conf"          ]] && \
+[[ -f "$CONFIGS_SRC/btop/btop.conf" ]] && \
     run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/btop/btop.conf' '$CONFIG_DIR/btop/btop.conf'" \
     "btop config"
 
-# Fallback kitty config if not in repo
 if [[ ! -f "$CONFIG_DIR/kitty/kitty.conf" ]]; then
-    sudo -u "$USER_NAME" cat > "$CONFIG_DIR/kitty/kitty.conf" << EOF
+    cat > "$CONFIG_DIR/kitty/kitty.conf" << EOF
 font_family      Hack Nerd Font
 font_size        11.0
 window_padding_width 8
@@ -339,27 +336,29 @@ sync_to_monitor yes
 background            ${NOC_BG}
 foreground            ${NOC_FG}
 EOF
+    chown "$USER_NAME:$USER_NAME" "$CONFIG_DIR/kitty/kitty.conf"
     print_ok "Fallback kitty config written"
 fi
 
-# GTK dark theme — adw-gtk3-dark reads the CSS variables noctalia writes
-sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/gtk-3.0/settings.ini' << 'EOF'
+# GTK settings — adw-gtk3-dark reads CSS vars noctalia writes
+cat > "$CONFIG_DIR/gtk-3.0/settings.ini" << 'EOF'
 [Settings]
 gtk-icon-theme-name=Colloid-Dynamic-Dark
 gtk-theme-name=adw-gtk3-dark
 gtk-application-prefer-dark-theme=1
-EOF"
+EOF
+chown "$USER_NAME:$USER_NAME" "$CONFIG_DIR/gtk-3.0/settings.ini"
 print_ok "GTK3 theme configured  (adw-gtk3-dark)"
 
-sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/gtk-4.0/settings.ini' << 'EOF'
+cat > "$CONFIG_DIR/gtk-4.0/settings.ini" << 'EOF'
 [Settings]
 gtk-icon-theme-name=Colloid-Dynamic-Dark
 gtk-theme-name=adw-gtk3-dark
 gtk-application-prefer-dark-theme=1
-EOF"
+EOF
+chown "$USER_NAME:$USER_NAME" "$CONFIG_DIR/gtk-4.0/settings.ini"
 print_ok "GTK4 theme configured  (adw-gtk3-dark)"
 
-# gsettings for apps that read dconf instead of settings.ini
 sudo -u "$USER_NAME" bash -c "
     export DBUS_SESSION_BUS_ADDRESS=\${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/\$(id -u)/bus}
     gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark' 2>/dev/null || true
@@ -375,10 +374,11 @@ sudo -u "$USER_NAME" bash -c "
 print_phase "GPU environment"
 
 GPU_ENV_FILE="$CONFIG_DIR/hypr/gpu-env.conf"
-sudo -u "$USER_NAME" bash -c "echo '# GPU environment — auto-generated' > '$GPU_ENV_FILE'"
+echo '# GPU environment — auto-generated' > "$GPU_ENV_FILE"
+chown "$USER_NAME:$USER_NAME" "$GPU_ENV_FILE"
 
 if echo "$GPU_INFO" | grep -qi nvidia; then
-    sudo -u "$USER_NAME" tee -a "$GPU_ENV_FILE" > /dev/null << 'EOF'
+    cat >> "$GPU_ENV_FILE" << 'EOF'
 env = LIBVA_DRIVER_NAME,nvidia
 env = XDG_SESSION_TYPE,wayland
 env = __GLX_VENDOR_LIBRARY_NAME,nvidia
@@ -392,7 +392,7 @@ env = QS_ICON_THEME,Colloid-Dynamic-Dark
 cursor { no_hardware_cursors = true }
 EOF
 elif echo "$GPU_INFO" | grep -qi amd; then
-    sudo -u "$USER_NAME" tee -a "$GPU_ENV_FILE" > /dev/null << 'EOF'
+    cat >> "$GPU_ENV_FILE" << 'EOF'
 env = LIBVA_DRIVER_NAME,radeonsi
 env = XDG_SESSION_TYPE,wayland
 env = QT_QPA_PLATFORM,wayland
@@ -400,7 +400,7 @@ env = QT_QPA_PLATFORMTHEME,gtk3
 env = QS_ICON_THEME,Colloid-Dynamic-Dark
 EOF
 elif echo "$GPU_INFO" | grep -qi intel; then
-    sudo -u "$USER_NAME" tee -a "$GPU_ENV_FILE" > /dev/null << 'EOF'
+    cat >> "$GPU_ENV_FILE" << 'EOF'
 env = LIBVA_DRIVER_NAME,iHD
 env = XDG_SESSION_TYPE,wayland
 env = QT_QPA_PLATFORM,wayland
@@ -408,7 +408,7 @@ env = QT_QPA_PLATFORMTHEME,gtk3
 env = QS_ICON_THEME,Colloid-Dynamic-Dark
 EOF
 else
-    sudo -u "$USER_NAME" tee -a "$GPU_ENV_FILE" > /dev/null << 'EOF'
+    cat >> "$GPU_ENV_FILE" << 'EOF'
 env = XDG_SESSION_TYPE,wayland
 env = QT_QPA_PLATFORM,wayland
 env = QT_QPA_PLATFORMTHEME,gtk3
@@ -423,19 +423,17 @@ print_ok "GPU env written  →  hypr/gpu-env.conf"
 
 print_phase "Noctalia config & Nemo theming"
 
-# Patch terminal command to kitty — noctalia defaults to alacritty
 NOCTALIA_SETTINGS="$CONFIG_DIR/noctalia/settings.json"
 if [[ -f "$NOCTALIA_SETTINGS" ]]; then
-    sudo -u "$USER_NAME" sed -i \
-        's/"terminalCommand": "alacritty -e"/"terminalCommand": "kitty -e"/' \
-        "$NOCTALIA_SETTINGS"
+    sed -i 's/"terminalCommand": "alacritty -e"/"terminalCommand": "kitty -e"/' "$NOCTALIA_SETTINGS"
     print_ok "Noctalia terminal set to kitty"
 else
     print_info "settings.json not yet written — set terminalCommand to 'kitty -e' after first launch"
 fi
 
-# Nemo GTK3 CSS template — regenerated by noctalia on every theme/wallpaper change
-sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/noctalia/templates/nemo.css' << 'EOF'
+# Nemo CSS template — written directly to avoid heredoc quoting issues with braces
+NEMO_TPL="$CONFIG_DIR/noctalia/templates/nemo.css"
+cat > "$NEMO_TPL" << 'TPLEOF'
 /* Nemo — noctalia Material You theme — auto-generated, do not edit */
 * {
     background-color: {{colors.surface.default.hex}};
@@ -494,39 +492,37 @@ tooltip {
     color: {{colors.on_surface.default.hex}};
     border: 1px solid {{colors.outline_variant.default.hex}};
 }
-EOF"
+TPLEOF
+chown "$USER_NAME:$USER_NAME" "$NEMO_TPL"
 print_ok "Nemo CSS template written"
 
-# Register template in user-templates.toml
+# Write user-templates.toml using python3 to avoid heredoc quoting issues
 TOML_FILE="$CONFIG_DIR/noctalia/user-templates.toml"
+TOML_ENTRY='[templates.nemo]
+input_path = "~/.config/noctalia/templates/nemo.css"
+output_path = "~/.config/gtk-3.0/gtk.css"
+post_hook = "nemo -q 2>/dev/null || true; sleep 0.5; nemo -n &"'
+
 if [[ ! -f "$TOML_FILE" ]]; then
-    sudo -u "$USER_NAME" bash -c "cat > '$TOML_FILE' << 'EOF'
-[config]
-
-[templates.nemo]
-input_path = "~/.config/noctalia/templates/nemo.css"
-output_path = "~/.config/gtk-3.0/gtk.css"
-post_hook = "nemo -q 2>/dev/null || true; sleep 0.5; nemo -n &"
-EOF"
+    python3 -c "
+content = '[config]\n\n' + '''$TOML_ENTRY'''
+open('$TOML_FILE', 'w').write(content)
+"
+    chown "$USER_NAME:$USER_NAME" "$TOML_FILE"
     print_ok "user-templates.toml created with nemo entry"
+elif ! grep -q '\[templates.nemo\]' "$TOML_FILE"; then
+    python3 -c "
+entry = '\n\n' + '''$TOML_ENTRY'''
+open('$TOML_FILE', 'a').write(entry)
+"
+    print_ok "Nemo template entry appended to user-templates.toml"
 else
-    if ! grep -q '\[templates.nemo\]' "$TOML_FILE"; then
-        sudo -u "$USER_NAME" bash -c "cat >> '$TOML_FILE' << 'EOF'
-
-[templates.nemo]
-input_path = "~/.config/noctalia/templates/nemo.css"
-output_path = "~/.config/gtk-3.0/gtk.css"
-post_hook = "nemo -q 2>/dev/null || true; sleep 0.5; nemo -n &"
-EOF"
-        print_ok "Nemo template entry appended to user-templates.toml"
-    else
-        print_ok "Nemo template entry already present in user-templates.toml"
-    fi
+    print_ok "Nemo template entry already present in user-templates.toml"
 fi
-print_info "Enable user templates in noctalia: Settings → Color Scheme → Templates → Advanced"
+print_info "Enable user templates: noctalia settings → color scheme → templates → advanced"
 
-# Static mako config using noctalia palette
-sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/mako/config' << 'EOF'
+# Mako config
+cat > "$CONFIG_DIR/mako/config" << EOF
 background-color=${NOC_BG}ee
 text-color=${NOC_FG}
 border-color=${NOC_ACCENT}
@@ -540,7 +536,8 @@ padding=12
 default-timeout=5000
 layer=overlay
 anchor=top-right
-EOF"
+EOF
+chown "$USER_NAME:$USER_NAME" "$CONFIG_DIR/mako/config"
 print_ok "mako config written with noctalia palette"
 
 ################################################################################
@@ -590,10 +587,8 @@ print_ok "Colloid-Dynamic icons installed"
 print_phase "Nemo custom actions"
 
 NEMO_ACTIONS_DIR="$USER_HOME/.local/share/nemo/actions"
-sudo -u "$USER_NAME" mkdir -p "$NEMO_ACTIONS_DIR"
 
-# Open Kitty Here
-sudo -u "$USER_NAME" bash -c "cat > '$NEMO_ACTIONS_DIR/open-kitty.nemo_action' << 'EOF'
+cat > "$NEMO_ACTIONS_DIR/open-kitty-dir.nemo_action" << 'EOF'
 [Nemo Action]
 Name=Open Kitty Here
 Comment=Open Kitty terminal in this directory
@@ -601,11 +596,9 @@ Exec=kitty --directory %F
 Icon-Name=kitty
 Selection=none
 Extensions=dir;
-EOF"
-print_ok "Nemo action: Open Kitty Here"
+EOF
 
-# Open Kitty Here (for files — opens in file's parent directory)
-sudo -u "$USER_NAME" bash -c "cat > '$NEMO_ACTIONS_DIR/open-kitty-file.nemo_action' << 'EOF'
+cat > "$NEMO_ACTIONS_DIR/open-kitty-file.nemo_action" << 'EOF'
 [Nemo Action]
 Name=Open Kitty Here
 Comment=Open Kitty terminal in this directory
@@ -613,16 +606,20 @@ Exec=kitty --directory %d
 Icon-Name=kitty
 Selection=any
 Extensions=any;
-EOF"
-print_ok "Nemo action: Open Kitty Here (files)"
+EOF
+
+chown "$USER_NAME:$USER_NAME" \
+    "$NEMO_ACTIONS_DIR/open-kitty-dir.nemo_action" \
+    "$NEMO_ACTIONS_DIR/open-kitty-file.nemo_action"
+print_ok "Nemo actions configured  (open kitty here)"
 
 ################################################################################
 # SHELL & SERVICES
 ################################################################################
 
-sudo -u "$USER_NAME" bash -c "cat > '$USER_HOME/.bashrc' << 'EOF'
+cat > "$USER_HOME/.bashrc" << 'EOF'
 #!/bin/bash
-command -v starship >/dev/null && eval \"\$(starship init bash)\"
+command -v starship >/dev/null && eval "$(starship init bash)"
 command -v fastfetch >/dev/null && fastfetch
 alias ls='ls --color=auto'
 alias ll='ls -lah --color=auto'
@@ -633,7 +630,8 @@ alias update='sudo pacman -Syu'
 alias rm='rm -i'
 alias mv='mv -i'
 alias cp='cp -i'
-EOF"
+EOF
+chown "$USER_NAME:$USER_NAME" "$USER_HOME/.bashrc"
 print_ok "Shell configured  (bash)"
 
 systemctl enable ly@tty2.service        2>/dev/null && print_ok "ly enabled"             || true
@@ -667,7 +665,7 @@ _row "dotfiles deployed"                     "~/.config/*"
 _row "gpu environment"                       "hypr/gpu-env.conf"
 _row "gtk3 & gtk4 theme"                    "adw-gtk3-dark"
 _row "colloid-dynamic icons"                 "~/.local/share/icons"
-_row "nemo"                                  "file manager · kitty action"
+_row "nemo"                                  "file manager · open kitty here"
 _row "nemo noctalia template"               "auto-themed on wallpaper change"
 _row "mako notifications"                    "static · noctalia palette"
 _row "ly · bluetooth · NetworkManager"      "systemctl enable"

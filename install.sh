@@ -18,7 +18,7 @@ BBLU="\e[94m"; BMAG="\e[95m"; BCYN="\e[96m"; BWHT="\e[97m"
 BLD="\e[1m"; DIM="\e[2m"; ITL="\e[3m"; UND="\e[4m"
 
 STEP=0
-TOTAL_STEPS=10
+TOTAL_STEPS=11
 
 ################################################################################
 # HELPER FUNCTIONS
@@ -108,11 +108,8 @@ CACHE_DIR="$USER_HOME/.cache"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIGS_SRC="$REPO_ROOT/configs"
+SCRIPTS_SRC="$REPO_ROOT/scripts"
 WALLPAPERS_SRC="$REPO_ROOT/Pictures/Wallpapers"
-
-NOC_BG="#1b0b1b"
-NOC_FG="#c6c2c6"
-NOC_ACCENT="#2596be"
 
 print_banner
 
@@ -178,13 +175,13 @@ CORE_PACKAGES=(
     hyprland ly
     xdg-desktop-portal-hyprland
 )
-TERMINAL_PACKAGES=(kitty starship fastfetch yazi)
+TERMINAL_PACKAGES=(kitty starship fastfetch)
 UTILITY_PACKAGES=(
     grim slurp wl-clipboard polkit-gnome
     bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager
     mako libnotify
 )
-APP_PACKAGES=(firefox mpv imv pavucontrol btop gnome-disk-utility zed)
+APP_PACKAGES=(firefox nautilus mpv imv pavucontrol btop gnome-disk-utility zed)
 DEV_PACKAGES=(git base-devel wget curl nano jq)
 FONT_PACKAGES=(ttf-jetbrains-mono-nerd ttf-hack-nerd ttf-iosevka-nerd ttf-cascadia-code-nerd)
 MEDIA_PACKAGES=(poppler imagemagick ffmpeg chafa)
@@ -270,6 +267,7 @@ CONFIG_DIRS=(
     "$CONFIG_DIR/kitty"
     "$CONFIG_DIR/fastfetch"
     "$CONFIG_DIR/btop"
+    "$CONFIG_DIR/scripts"
     "$CONFIG_DIR/quickshell/noctalia"
     "$CONFIG_DIR/noctalia/templates"
 )
@@ -280,6 +278,8 @@ for dir in "${CONFIG_DIRS[@]}"; do
 done
 
 sudo -u "$USER_NAME" mkdir -p "$USER_HOME/Pictures/Wallpapers"
+sudo -u "$USER_NAME" mkdir -p "$USER_HOME/.local/share/icons"
+sudo -u "$USER_NAME" mkdir -p "$CACHE_DIR/noctalia"
 print_ok "Directory tree created"
 
 ################################################################################
@@ -307,6 +307,11 @@ print_phase "Configuration files"
 [[ -f "$CONFIGS_SRC/btop/btop.conf" ]] && \
     run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/btop/btop.conf' '$CONFIG_DIR/btop/btop.conf'" \
     "btop config"
+
+# Noctalia colloid template
+[[ -f "$CONFIGS_SRC/noctalia/templates/colloid-color.txt" ]] && \
+    run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/noctalia/templates/colloid-color.txt' '$CONFIG_DIR/noctalia/templates/colloid-color.txt'" \
+    "Noctalia colloid template"
 
 ################################################################################
 # 6. GPU-SPECIFIC ENVIRONMENT
@@ -359,7 +364,65 @@ fi
 print_ok "GPU env written  →  hypr/gpu-env.conf"
 
 ################################################################################
-# 7. COPY WALLPAPERS
+# 7. SCRIPTS
+################################################################################
+
+print_phase "Scripts"
+
+if [[ -d "$SCRIPTS_SRC" ]]; then
+    run_command "sudo -u $USER_NAME cp -rf '$SCRIPTS_SRC/'* '$CONFIG_DIR/scripts/' && chmod +x '$CONFIG_DIR/scripts/'*" \
+        "User scripts"
+else
+    print_info "No scripts directory found — skipping"
+fi
+
+################################################################################
+# 8. COLLOID ICON THEME
+################################################################################
+
+print_phase "Colloid icon theme"
+
+COLLOID_SRC="$CONFIG_DIR/colloid-src"
+if [[ ! -d "$COLLOID_SRC" ]]; then
+    run_command "sudo -u $USER_NAME git clone --depth 1 https://github.com/Saltyfunnel/colloid.git '$COLLOID_SRC'" \
+        "Cloning Colloid icon theme"
+else
+    print_ok "Colloid source already present"
+fi
+
+(cd "$COLLOID_SRC" && sudo -u "$USER_NAME" ./install.sh \
+    -d "$USER_HOME/.local/share/icons" \
+    -n Colloid-Dynamic \
+    -s default) \
+    > /tmp/hypr_install_log 2>&1 &
+spinner "$!" "Installing Colloid-Dynamic icons"
+wait $! || print_err "Colloid install failed  →  /tmp/hypr_install_log"
+print_ok "Colloid-Dynamic icons installed"
+
+# Seed the prev_icon_color cache with the default Colloid accent
+# so recolor_folders.sh uses the fast path on first run
+echo '#60c0f0' > "$CACHE_DIR/noctalia/prev_icon_color"
+chown "$USER_NAME:$USER_NAME" "$CACHE_DIR/noctalia/prev_icon_color"
+print_ok "Icon colour cache seeded  →  #60c0f0"
+
+################################################################################
+# 9. NOCTALIA USER TEMPLATES
+################################################################################
+
+print_phase "Noctalia user templates"
+
+sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/noctalia/user-templates.toml' << 'EOF'
+[config]
+
+[templates.colloid]
+input_path  = \"$USER_HOME/.config/noctalia/templates/colloid-color.txt\"
+output_path = \"$USER_HOME/.config/noctalia/colloid-color.txt\"
+post_hook   = \"$USER_HOME/.config/scripts/noctalia-colloid-hook.sh\"
+EOF"
+print_ok "user-templates.toml written"
+
+################################################################################
+# 10. COPY WALLPAPERS
 ################################################################################
 
 [[ -d "$WALLPAPERS_SRC" ]] && \
@@ -367,8 +430,10 @@ print_ok "GPU env written  →  hypr/gpu-env.conf"
     "Wallpapers"
 
 ################################################################################
-# 8. SHELL & SERVICES
+# 11. SHELL & SERVICES
 ################################################################################
+
+print_phase "Shell & services"
 
 cat > "$USER_HOME/.bashrc" << 'EOF'
 #!/bin/bash
@@ -416,11 +481,9 @@ _row "${#ALL_PACKAGES[@]} packages"          "pacman"
 _row "noctalia-shell"                        "AUR · quickshell bar"
 _row "dotfiles deployed"                     "~/.config/*"
 _row "gpu environment"                       "hypr/gpu-env.conf"
-_row "gtk3 & gtk4 theme"                    "adw-gtk3-dark"
 _row "colloid-dynamic icons"                 "~/.local/share/icons"
-_row "nemo"                                  "file manager · open kitty here"
-_row "nemo noctalia template"               "auto-themed on wallpaper change"
-_row "mako notifications"                    "static · noctalia palette"
+_row "nautilus"                              "file manager · dark · colloid icons"
+_row "colloid noctalia template"             "auto-recolours on wallpaper change"
 _row "ly · bluetooth · NetworkManager"      "systemctl enable"
 
 echo ""
@@ -431,7 +494,7 @@ echo -e "    ${BLD}next${RST}"
 echo ""
 echo -e "    ${BCYN}1${RST}  ${DIM}reboot${RST}                         ${BBLK}sudo reboot${RST}"
 echo -e "    ${BCYN}2${RST}  ${DIM}select session at ly${RST}            ${BBLK}Hyprland${RST}"
-echo -e "    ${BCYN}3${RST}  ${DIM}enable nemo theming${RST}             ${BBLK}noctalia settings → color scheme → templates → advanced → user templates${RST}"
+echo -e "    ${BCYN}3${RST}  ${DIM}enable colloid theming${RST}          ${BBLK}noctalia settings → color scheme → templates → advanced → user templates${RST}"
 echo -e "    ${BCYN}4${RST}  ${DIM}set wallpaper${RST}                   ${BBLK}via noctalia wall picker${RST}"
 echo -e "    ${BCYN}5${RST}  ${DIM}if terminal wrong in launcher${RST}   ${BBLK}noctalia settings → set terminalCommand to 'kitty -e'${RST}"
 
@@ -445,7 +508,7 @@ echo ""
 _bind "super + return"        "terminal"
 _bind "super + d"             "launcher"
 _bind "super + q"             "close window"
-_bind "super + f"             "file manager  (nemo)"
+_bind "super + f"             "file manager  (nautilus)"
 _bind "super + w"             "wallpaper picker"
 _bind "super + b / c / i"    "browser · editor · monitor"
 _bind "super + v"             "toggle float"

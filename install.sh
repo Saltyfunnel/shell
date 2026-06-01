@@ -179,7 +179,7 @@ TERMINAL_PACKAGES=(kitty starship fastfetch)
 UTILITY_PACKAGES=(
     grim slurp wl-clipboard polkit-gnome
     bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager
-    mako libnotify
+    libnotify
 )
 APP_PACKAGES=(firefox nautilus mpv imv pavucontrol btop gnome-disk-utility zed)
 DEV_PACKAGES=(git base-devel wget curl nano jq)
@@ -238,11 +238,11 @@ else
     print_ok "yay already present"
 fi
 
-sudo -u "$USER_NAME" yay -S --noconfirm noctalia-shell \
+sudo -u "$USER_NAME" yay -S --noconfirm noctalia-shell nordzy-cursors \
     > /tmp/hypr_install_log 2>&1 &
-spinner "$!" "Installing noctalia-shell"
+spinner "$!" "Installing noctalia-shell and nordzy-cursors"
 wait $! || print_err "AUR install failed  →  /tmp/hypr_install_log"
-print_ok "noctalia-shell installed"
+print_ok "AUR packages installed"
 
 if ! command -v qs &>/dev/null; then
     QS_BIN=$(pacman -Ql noctalia-shell 2>/dev/null | grep -E '/usr/bin/qs$' | awk '{print $2}' || true)
@@ -308,7 +308,6 @@ print_phase "Configuration files"
     run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/btop/btop.conf' '$CONFIG_DIR/btop/btop.conf'" \
     "btop config"
 
-# Noctalia colloid template
 [[ -f "$CONFIGS_SRC/noctalia/templates/colloid-color.txt" ]] && \
     run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/noctalia/templates/colloid-color.txt' '$CONFIG_DIR/noctalia/templates/colloid-color.txt'" \
     "Noctalia colloid template"
@@ -319,49 +318,51 @@ print_phase "Configuration files"
 
 print_phase "GPU environment"
 
-GPU_ENV_FILE="$CONFIG_DIR/hypr/gpu-env.conf"
-echo '# GPU environment — auto-generated' > "$GPU_ENV_FILE"
-chown "$USER_NAME:$USER_NAME" "$GPU_ENV_FILE"
+GPU_ENV_FILE="$CONFIG_DIR/hypr/gpu-env.lua"
+sudo -u "$USER_NAME" bash -c "echo '-- GPU environment — auto-generated' > '$GPU_ENV_FILE'"
 
 if echo "$GPU_INFO" | grep -qi nvidia; then
-    cat >> "$GPU_ENV_FILE" << 'EOF'
-env = LIBVA_DRIVER_NAME,nvidia
-env = XDG_SESSION_TYPE,wayland
-env = __GLX_VENDOR_LIBRARY_NAME,nvidia
-env = GBM_BACKEND,nvidia-drm
-env = WLR_NO_HARDWARE_CURSORS,1
-env = __GL_GSYNC_ALLOWED,1
-env = __GL_VRR_ALLOWED,1
-env = QT_QPA_PLATFORM,wayland
-env = QT_QPA_PLATFORMTHEME,gtk3
-env = QS_ICON_THEME,Adwaita
-cursor { no_hardware_cursors = true }
+    sudo -u "$USER_NAME" bash -c "cat >> '$GPU_ENV_FILE'" << 'EOF'
+return {
+  LIBVA_DRIVER_NAME         = "nvidia",
+  XDG_SESSION_TYPE          = "wayland",
+  __GLX_VENDOR_LIBRARY_NAME = "nvidia",
+  GBM_BACKEND               = "nvidia-drm",
+  WLR_NO_HARDWARE_CURSORS   = "1",
+  __GL_GSYNC_ALLOWED        = "1",
+  __GL_VRR_ALLOWED          = "1",
+  QT_QPA_PLATFORM           = "wayland",
+  QT_QPA_PLATFORMTHEME      = "gtk3",
+}
 EOF
 elif echo "$GPU_INFO" | grep -qi amd; then
-    cat >> "$GPU_ENV_FILE" << 'EOF'
-env = LIBVA_DRIVER_NAME,radeonsi
-env = XDG_SESSION_TYPE,wayland
-env = QT_QPA_PLATFORM,wayland
-env = QT_QPA_PLATFORMTHEME,gtk3
-env = QS_ICON_THEME,Adwaita
+    sudo -u "$USER_NAME" bash -c "cat >> '$GPU_ENV_FILE'" << 'EOF'
+return {
+  LIBVA_DRIVER_NAME    = "radeonsi",
+  XDG_SESSION_TYPE     = "wayland",
+  QT_QPA_PLATFORM      = "wayland",
+  QT_QPA_PLATFORMTHEME = "gtk3",
+}
 EOF
 elif echo "$GPU_INFO" | grep -qi intel; then
-    cat >> "$GPU_ENV_FILE" << 'EOF'
-env = LIBVA_DRIVER_NAME,iHD
-env = XDG_SESSION_TYPE,wayland
-env = QT_QPA_PLATFORM,wayland
-env = QT_QPA_PLATFORMTHEME,gtk3
-env = QS_ICON_THEME,Adwaita
+    sudo -u "$USER_NAME" bash -c "cat >> '$GPU_ENV_FILE'" << 'EOF'
+return {
+  LIBVA_DRIVER_NAME    = "iHD",
+  XDG_SESSION_TYPE     = "wayland",
+  QT_QPA_PLATFORM      = "wayland",
+  QT_QPA_PLATFORMTHEME = "gtk3",
+}
 EOF
 else
-    cat >> "$GPU_ENV_FILE" << 'EOF'
-env = XDG_SESSION_TYPE,wayland
-env = QT_QPA_PLATFORM,wayland
-env = QT_QPA_PLATFORMTHEME,gtk3
-env = QS_ICON_THEME,Adwaita
+    sudo -u "$USER_NAME" bash -c "cat >> '$GPU_ENV_FILE'" << 'EOF'
+return {
+  XDG_SESSION_TYPE     = "wayland",
+  QT_QPA_PLATFORM      = "wayland",
+  QT_QPA_PLATFORMTHEME = "gtk3",
+}
 EOF
 fi
-print_ok "GPU env written  →  hypr/gpu-env.conf"
+print_ok "GPU env written  →  hypr/gpu-env.lua"
 
 ################################################################################
 # 7. SCRIPTS
@@ -399,8 +400,6 @@ spinner "$!" "Installing Colloid-Dynamic icons"
 wait $! || print_err "Colloid install failed  →  /tmp/hypr_install_log"
 print_ok "Colloid-Dynamic icons installed"
 
-# Seed the prev_icon_color cache with the default Colloid accent
-# so recolor_folders.sh uses the fast path on first run
 echo '#60c0f0' > "$CACHE_DIR/noctalia/prev_icon_color"
 chown "$USER_NAME:$USER_NAME" "$CACHE_DIR/noctalia/prev_icon_color"
 print_ok "Icon colour cache seeded  →  #60c0f0"
@@ -478,9 +477,9 @@ echo ""
 _row() { printf "    ${BGRN}✓${RST}  %-36s${DIM}%s${RST}\n" "$1" "$2"; }
 _row "system updated"                        "pacman -Syu"
 _row "${#ALL_PACKAGES[@]} packages"          "pacman"
-_row "noctalia-shell"                        "AUR · quickshell bar"
+_row "noctalia-shell · nordzy-cursors"       "AUR"
 _row "dotfiles deployed"                     "~/.config/*"
-_row "gpu environment"                       "hypr/gpu-env.conf"
+_row "gpu environment"                       "hypr/gpu-env.lua"
 _row "colloid-dynamic icons"                 "~/.local/share/icons"
 _row "nautilus"                              "file manager · dark · colloid icons"
 _row "colloid noctalia template"             "auto-recolours on wallpaper change"

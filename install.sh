@@ -181,7 +181,7 @@ UTILITY_PACKAGES=(
     bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager
     libnotify
 )
-APP_PACKAGES=(nautilus mpv imv pavucontrol btop gnome-disk-utility firefox zed)
+APP_PACKAGES=(nautilus mpv steam qbittorrent libreoffice-fresh imv pavucontrol btop gnome-disk-utility firefox zed)
 DEV_PACKAGES=(git base-devel wget curl nano jq)
 FONT_PACKAGES=(ttf-jetbrains-mono-nerd ttf-hack-nerd ttf-iosevka-nerd ttf-cascadia-code-nerd)
 MEDIA_PACKAGES=(poppler imagemagick ffmpeg chafa)
@@ -238,9 +238,9 @@ else
     print_ok "yay already present"
 fi
 
-sudo -u "$USER_NAME" yay -S --noconfirm noctalia-shell \
+sudo -u "$USER_NAME" yay -S --noconfirm noctalia-shell protonplus spotify localsend-bin\
     > /tmp/hypr_install_log 2>&1 &
-spinner "$!" "Installing noctalia-shell and zen browser"
+spinner "$!" "Installing noctalia-shell protonplus spotify and localsend"
 wait $! || print_err "AUR install failed  →  /tmp/hypr_install_log"
 print_ok "AUR packages installed"
 

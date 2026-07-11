@@ -264,6 +264,7 @@ print_phase "Directory structure"
 
 CONFIG_DIRS=(
     "$CONFIG_DIR/hypr"
+    "$CONFIG_DIR/hypr/noctalia"
     "$CONFIG_DIR/kitty"
     "$CONFIG_DIR/fastfetch"
     "$CONFIG_DIR/btop"
@@ -311,6 +312,10 @@ print_phase "Configuration files"
 [[ -f "$CONFIGS_SRC/noctalia/templates/colloid-color.txt" ]] && \
     run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/noctalia/templates/colloid-color.txt' '$CONFIG_DIR/noctalia/templates/colloid-color.txt'" \
     "Noctalia colloid template"
+
+[[ -f "$CONFIGS_SRC/noctalia/templates/hyprland-colors.conf" ]] && \
+    run_command "sudo -u $USER_NAME cp '$CONFIGS_SRC/noctalia/templates/hyprland-colors.conf' '$CONFIG_DIR/noctalia/templates/hyprland-colors.conf'" \
+    "Noctalia hyprland colors template"
 
 ################################################################################
 # 6. GPU-SPECIFIC ENVIRONMENT
@@ -417,6 +422,11 @@ sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/noctalia/user-templates.toml' <
 input_path  = \"$USER_HOME/.config/noctalia/templates/colloid-color.txt\"
 output_path = \"$USER_HOME/.config/noctalia/colloid-color.txt\"
 post_hook   = \"$USER_HOME/.config/scripts/noctalia-colloid-hook.sh\"
+
+[templates.hyprland_colors]
+input_path  = \"$USER_HOME/.config/noctalia/templates/hyprland-colors.conf\"
+output_path = \"$USER_HOME/.config/hypr/noctalia/noctalia-colors.conf\"
+post_hook   = \"hyprctl reload\"
 EOF"
 print_ok "user-templates.toml written"
 
@@ -483,6 +493,7 @@ _row "gpu environment"                       "hypr/gpu-env.lua"
 _row "colloid-dynamic icons"                 "~/.local/share/icons"
 _row "nautilus"                              "file manager · dark · colloid icons"
 _row "colloid noctalia template"             "auto-recolours on wallpaper change"
+_row "hyprland border noctalia template"     "auto-updates on wallpaper change"
 _row "ly · bluetooth · NetworkManager"      "systemctl enable"
 
 echo ""
@@ -493,7 +504,7 @@ echo -e "    ${BLD}next${RST}"
 echo ""
 echo -e "    ${BCYN}1${RST}  ${DIM}reboot${RST}                         ${BBLK}sudo reboot${RST}"
 echo -e "    ${BCYN}2${RST}  ${DIM}select session at ly${RST}            ${BBLK}Hyprland${RST}"
-echo -e "    ${BCYN}3${RST}  ${DIM}enable colloid theming${RST}          ${BBLK}noctalia settings → color scheme → templates → advanced → user templates${RST}"
+echo -e "    ${BCYN}3${RST}  ${DIM}enable user templates${RST}           ${BBLK}noctalia settings → color scheme → templates → advanced → user templates${RST}"
 echo -e "    ${BCYN}4${RST}  ${DIM}set wallpaper${RST}                   ${BBLK}via noctalia wall picker${RST}"
 echo -e "    ${BCYN}5${RST}  ${DIM}if terminal wrong in launcher${RST}   ${BBLK}noctalia settings → set terminalCommand to 'kitty -e'${RST}"
 

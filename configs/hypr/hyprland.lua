@@ -50,15 +50,35 @@ hl.config({
 --------------------------------------------------------------------------------
 -- noctalia colors
 --------------------------------------------------------------------------------
+-- noctalia-colors.conf mixes hyprlang $vars with general{}/group{} blocks,
+-- which isn't valid Lua, so hl.source() can't parse it directly.
+-- Instead we just scan the file ourselves for "$name = rgb(hex)" lines.
 
-local noc_colors = os.getenv("HOME") .. "/.config/hypr/noctalia/noctalia-colors.conf"
-if io.open(noc_colors, "r") then
-  hl.source(noc_colors)
+local function parse_noctalia_colors(path)
+  local colors = {}
+  local f = io.open(path, "r")
+  if not f then return colors end
+  for line in f:lines() do
+    local name, hex = line:match("^%$([%a_]+)%s*=%s*rgb%((%x+)%)")
+    if name then
+      colors[name] = hex
+    end
+  end
+  f:close()
+  return colors
 end
 
-local color2 = "rgba(87d1eaee)"
-local color4 = "rgba(e1b8f5ee)"
-local color8 = "rgba(3f484caa)"
+local noc_colors = parse_noctalia_colors(
+  os.getenv("HOME") .. "/.config/hypr/noctalia/noctalia-colors.conf"
+)
+
+local function rgba(hex, alpha)
+  return "rgba(" .. hex .. (alpha or "ff") .. ")"
+end
+
+local color2 = rgba(noc_colors.primary  or "6fd4f2", "ee")
+local color4 = rgba(noc_colors.tertiary or "e7b3ff", "ee")
+local color8 = rgba(noc_colors.surface  or "0f1416", "aa")
 
 --------------------------------------------------------------------------------
 -- look & feel

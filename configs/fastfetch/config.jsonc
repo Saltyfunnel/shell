@@ -1,14 +1,14 @@
-
 {
     "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
     "logo": {
-    	"source": "Your Logo here",
-    	"type": "kitty",
-      	"height": 21,
-      	"width": 30,
-      	"padding": {
-    		"top": 3
-      	}
+        "source": "Your Logo here",
+        "type": "kitty",
+        "height": 21,
+        "width": 30,
+        "padding": {
+            "top": 3,
+            "left": 3
+        }
     },
     "display": {
           "separator": " ➜  "

@@ -158,9 +158,9 @@ hl.animation({ leaf = "workspaces",  enabled = true, speed = 5,  bezier = "wind"
 hl.window_rule({ match = { class = "pavucontrol"        }, float  = true })
 hl.window_rule({ match = { class = "blueman-manager"    }, float  = true })
 
-hl.window_rule({ match = { class = "firefox"            }, opacity = "0.90 0.90" })
+hl.window_rule({ match = { class = "zen"            }, opacity = "0.90 0.90" })
 hl.window_rule({ match = { class = "dev.zed.Zed"        }, opacity = "0.90 0.90" })
-hl.window_rule({ match = { class = "spotify"            }, opacity = "0.80 0.80" })
+hl.window_rule({ match = { class = "Spotify"            }, opacity = "0.80 0.80" })
 hl.window_rule({ match = { class = "kitty"              }, opacity = "0.80 0.80" })
 hl.window_rule({ match = { class = "org.gnome.Nautilus" }, opacity = "0.80 0.80" })
 
@@ -173,7 +173,7 @@ local ipc = "qs -c noctalia-shell ipc call"
 
 local term = "kitty"
 local ed   = "zeditor"
-local br   = "firefox"
+local br   = "zen-browser"
 local fm   = "nautilus"
 
 -- core

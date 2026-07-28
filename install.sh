@@ -18,7 +18,7 @@ BBLU="\e[94m"; BMAG="\e[95m"; BCYN="\e[96m"; BWHT="\e[97m"
 BLD="\e[1m"; DIM="\e[2m"; ITL="\e[3m"; UND="\e[4m"
 
 STEP=0
-TOTAL_STEPS=11
+TOTAL_STEPS=12
 
 ################################################################################
 # HELPER FUNCTIONS
@@ -181,7 +181,10 @@ UTILITY_PACKAGES=(
     bluez bluez-utils blueman udiskie udisks2 gvfs networkmanager
     libnotify
 )
-APP_PACKAGES=(nautilus mpv steam qbittorrent libreoffice-fresh imv pavucontrol btop gnome-disk-utility firefox zed)
+FILE_PACKAGES=(
+    thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller exo
+)
+APP_PACKAGES=(mpv steam qbittorrent libreoffice-fresh imv pavucontrol btop gnome-disk-utility firefox zed)
 DEV_PACKAGES=(git base-devel wget curl nano jq)
 FONT_PACKAGES=(ttf-jetbrains-mono-nerd ttf-hack-nerd ttf-iosevka-nerd ttf-cascadia-code-nerd)
 MEDIA_PACKAGES=(poppler imagemagick ffmpeg chafa)
@@ -191,7 +194,7 @@ QT_PACKAGES=(qt5-wayland qt6-wayland)
 
 ALL_PACKAGES=(
     "${CORE_PACKAGES[@]}" "${TERMINAL_PACKAGES[@]}" "${UTILITY_PACKAGES[@]}"
-    "${APP_PACKAGES[@]}" "${DEV_PACKAGES[@]}"
+    "${FILE_PACKAGES[@]}" "${APP_PACKAGES[@]}" "${DEV_PACKAGES[@]}"
     "${FONT_PACKAGES[@]}" "${MEDIA_PACKAGES[@]}" "${COMPRESSION_PACKAGES[@]}"
     "${PYTHON_PACKAGES[@]}" "${QT_PACKAGES[@]}"
 )
@@ -201,6 +204,7 @@ declare -A GROUP_LABELS=(
     ["Core WM"]="${CORE_PACKAGES[*]}"
     ["Terminal"]="${TERMINAL_PACKAGES[*]}"
     ["Utilities"]="${UTILITY_PACKAGES[*]}"
+    ["Files"]="${FILE_PACKAGES[*]}"
     ["Apps"]="${APP_PACKAGES[*]}"
     ["Dev Tools"]="${DEV_PACKAGES[*]}"
     ["Fonts"]="${FONT_PACKAGES[*]}"
@@ -210,7 +214,7 @@ declare -A GROUP_LABELS=(
     ["Qt/Wayland"]="${QT_PACKAGES[*]}"
 )
 
-for label in "Core WM" "Terminal" "Utilities" "Apps" "Dev Tools" "Fonts" "Media" "Archives" "Python" "Qt/Wayland"; do
+for label in "Core WM" "Terminal" "Utilities" "Files" "Apps" "Dev Tools" "Fonts" "Media" "Archives" "Python" "Qt/Wayland"; do
     echo -e "  ${BBLU}${label}${RST}  ${DIM}${GROUP_LABELS[$label]}${RST}"
 done
 echo ""
@@ -238,9 +242,9 @@ else
     print_ok "yay already present"
 fi
 
-sudo -u "$USER_NAME" yay -S --noconfirm noctalia-git protonplus spotify localsend-bin\
+sudo -u "$USER_NAME" yay -S --noconfirm noctalia-git protonplus spotify localsend-bin \
     > /tmp/hypr_install_log 2>&1 &
-spinner "$!" "Installing noctalia-shell protonplus spotify and localsend"
+spinner "$!" "Installing noctalia-shell, protonplus, spotify, and localsend"
 wait $! || print_err "AUR install failed  →  /tmp/hypr_install_log"
 print_ok "AUR packages installed"
 
@@ -271,6 +275,7 @@ CONFIG_DIRS=(
     "$CONFIG_DIR/scripts"
     "$CONFIG_DIR/quickshell/noctalia"
     "$CONFIG_DIR/noctalia/templates"
+    "$CONFIG_DIR/Thunar"
 )
 
 for dir in "${CONFIG_DIRS[@]}"; do
@@ -318,7 +323,29 @@ print_phase "Configuration files"
     "Noctalia hyprland colors template"
 
 ################################################################################
-# 6. GPU-SPECIFIC ENVIRONMENT
+# 6. THUNAR CUSTOM ACTIONS (KITTY)
+################################################################################
+
+print_phase "Thunar Custom Actions"
+
+sudo -u "$USER_NAME" bash -c "cat > '$CONFIG_DIR/Thunar/uca.xml' << 'EOF'
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<actions>
+<action>
+    <icon>kitty</icon>
+    <name>Open Kitty Here</name>
+    <unique-id>kitty-open-here</unique-id>
+    <command>kitty --directory %f</command>
+    <description>Open Kitty terminal in this directory</description>
+    <patterns>*</patterns>
+    <directories/>
+</action>
+</actions>
+EOF"
+print_ok "Thunar 'Open Kitty Here' action configured"
+
+################################################################################
+# 7. GPU-SPECIFIC ENVIRONMENT
 ################################################################################
 
 print_phase "GPU environment"
@@ -370,7 +397,7 @@ fi
 print_ok "GPU env written  →  hypr/gpu-env.lua"
 
 ################################################################################
-# 7. SCRIPTS
+# 8. SCRIPTS
 ################################################################################
 
 print_phase "Scripts"
@@ -383,7 +410,7 @@ else
 fi
 
 ################################################################################
-# 8. COLLOID ICON THEME
+# 9. COLLOID ICON THEME
 ################################################################################
 
 print_phase "Colloid icon theme"
@@ -410,7 +437,7 @@ chown "$USER_NAME:$USER_NAME" "$CACHE_DIR/noctalia/prev_icon_color"
 print_ok "Icon colour cache seeded  →  #60c0f0"
 
 ################################################################################
-# 9. NOCTALIA USER TEMPLATES
+# 10. NOCTALIA USER TEMPLATES
 ################################################################################
 
 print_phase "Noctalia user templates"
@@ -431,7 +458,7 @@ EOF"
 print_ok "user-templates.toml written"
 
 ################################################################################
-# 10. COPY WALLPAPERS
+# 11. COPY WALLPAPERS
 ################################################################################
 
 [[ -d "$WALLPAPERS_SRC" ]] && \
@@ -439,7 +466,7 @@ print_ok "user-templates.toml written"
     "Wallpapers"
 
 ################################################################################
-# 11. SHELL & SERVICES
+# 12. SHELL & SERVICES
 ################################################################################
 
 print_phase "Shell & services"
@@ -485,16 +512,16 @@ echo ""
 echo ""
 
 _row() { printf "    ${BGRN}✓${RST}  %-36s${DIM}%s${RST}\n" "$1" "$2"; }
-_row "system updated"                        "pacman -Syu"
+_row "system updated"                         "pacman -Syu"
 _row "${#ALL_PACKAGES[@]} packages"          "pacman"
-_row "noctalia-shell · nordzy-cursors"       "AUR"
+_row "noctalia-shell · nordzy-cursors"        "AUR"
 _row "dotfiles deployed"                     "~/.config/*"
 _row "gpu environment"                       "hypr/gpu-env.lua"
 _row "colloid-dynamic icons"                 "~/.local/share/icons"
-_row "nautilus"                              "file manager · dark · colloid icons"
+_row "thunar (+ uca.xml)"                    "file manager · dark · colloid icons"
 _row "colloid noctalia template"             "auto-recolours on wallpaper change"
 _row "hyprland border noctalia template"     "auto-updates on wallpaper change"
-_row "ly · bluetooth · NetworkManager"      "systemctl enable"
+_row "ly · bluetooth · NetworkManager"       "systemctl enable"
 
 echo ""
 hr
@@ -502,10 +529,10 @@ echo ""
 
 echo -e "    ${BLD}next${RST}"
 echo ""
-echo -e "    ${BCYN}1${RST}  ${DIM}reboot${RST}                         ${BBLK}sudo reboot${RST}"
-echo -e "    ${BCYN}2${RST}  ${DIM}select session at ly${RST}            ${BBLK}Hyprland${RST}"
-echo -e "    ${BCYN}3${RST}  ${DIM}enable user templates${RST}           ${BBLK}noctalia settings → color scheme → templates → advanced → user templates${RST}"
-echo -e "    ${BCYN}4${RST}  ${DIM}set wallpaper${RST}                   ${BBLK}via noctalia wall picker${RST}"
+echo -e "    ${BCYN}1${RST}  ${DIM}reboot${RST}                             ${BBLK}sudo reboot${RST}"
+echo -e "    ${BCYN}2${RST}  ${DIM}select session at ly${RST}             ${BBLK}Hyprland${RST}"
+echo -e "    ${BCYN}3${RST}  ${DIM}enable user templates${RST}            ${BBLK}noctalia settings → color scheme → templates → advanced → user templates${RST}"
+echo -e "    ${BCYN}4${RST}  ${DIM}set wallpaper${RST}                    ${BBLK}via noctalia wall picker${RST}"
 echo -e "    ${BCYN}5${RST}  ${DIM}if terminal wrong in launcher${RST}   ${BBLK}noctalia settings → set terminalCommand to 'kitty -e'${RST}"
 
 echo ""
@@ -518,11 +545,11 @@ echo ""
 _bind "super + return"        "terminal"
 _bind "super + d"             "launcher"
 _bind "super + q"             "close window"
-_bind "super + f"             "file manager  (nautilus)"
+_bind "super + f"             "file manager  (thunar)"
 _bind "super + w"             "wallpaper picker"
-_bind "super + b / c / i"    "browser · editor · monitor"
+_bind "super + b / c / i"     "browser · editor · monitor"
 _bind "super + v"             "toggle float"
-_bind "super + h/j/k/l"      "focus ← ↓ ↑ →"
+_bind "super + h/j/k/l"       "focus ← ↓ ↑ →"
 _bind "super + [1–5]"         "switch workspace"
 _bind "super+shift + [1–5]"  "move to workspace"
 

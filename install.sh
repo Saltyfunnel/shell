@@ -238,7 +238,7 @@ else
     print_ok "yay already present"
 fi
 
-sudo -u "$USER_NAME" yay -S --noconfirm noctalia-shell protonplus spotify localsend-bin\
+sudo -u "$USER_NAME" yay -S --noconfirm noctalia-git protonplus spotify localsend-bin\
     > /tmp/hypr_install_log 2>&1 &
 spinner "$!" "Installing noctalia-shell protonplus spotify and localsend"
 wait $! || print_err "AUR install failed  →  /tmp/hypr_install_log"

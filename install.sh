@@ -103,7 +103,8 @@ install_pkg fish eza zoxide direnv \
     curl trash-cli jq lazygit bat ripgrep ydotool hyprpicker xdg-user-dirs
 
 echo "==> Login manager (the dots don't ship one)"
-install_pkg greetd greetd-tuigreet
+# xorg-server is for SDDM's default X11 greeter; Hyprland itself still runs on Wayland.
+install_pkg sddm xorg-server
 
 # --- 4. GTK/QT theming: order matters (framework before darkly-bin) ---------
 
@@ -309,22 +310,13 @@ echo "==> Enabling services"
 sudo systemctl enable --now NetworkManager
 sudo systemctl enable --now bluetooth
 sudo systemctl enable --now power-profiles-daemon
-sudo systemctl enable greetd
+sudo systemctl enable sddm
 
 # ydotool ships a user unit; this can fail without a live user session, so
 # don't let it abort the install. If it does, run it after first login:
 #   systemctl --user enable --now ydotool
 systemctl --user enable --now ydotool 2>/dev/null \
     || echo "    NOTE: run 'systemctl --user enable --now ydotool' after first login."
-
-sudo tee /etc/greetd/config.toml >/dev/null <<'EOF'
-[terminal]
-vt = 1
-
-[default_session]
-command = "tuigreet --remember --remember-session --cmd Hyprland"
-user = "greeter"
-EOF
 
 # --- 9. Default shell --------------------------------------------------------
 
@@ -336,7 +328,8 @@ fi
 xdg-user-dirs-update
 
 echo
-echo "==> Done. Reboot into greetd, log in, Hyprland starts with the Caelestia shell."
+echo "==> Done. Reboot, pick the Hyprland session in SDDM and log in; the Caelestia shell starts with it."
+echo "    Optional: ./install-sddm-theme.sh gives SDDM a login theme that follows the Caelestia scheme."
 echo "    First run:"
 echo "      >wallpaper in the launcher (or: caelestia wallpaper -f <path>)"
 echo "      caelestia scheme set -n dynamic"

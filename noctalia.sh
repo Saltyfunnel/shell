@@ -2,11 +2,6 @@
 # install-noctalia-clean.sh
 #
 # Fresh minimal Arch install -> Hyprland + Noctalia desktop shell (with Spicetify).
-#
-# noctalia-git only exists in the AUR, so this bootstraps `yay` first
-# and then uses it for every package, official and AUR alike.
-#
-# Assumes: Arch already installed and booted, network up, normal user with sudo.
 
 set -euo pipefail
 
@@ -27,9 +22,7 @@ sudo pacman -Syu --noconfirm
 echo "==> Base build tools"
 sudo pacman -S --needed --noconfirm base-devel git go pciutils
 
-# --- bootstrap yay ---
-
-if ! command -v yay &>/devnull; then
+if ! command -v yay &>/dev/null; then
     echo "==> Bootstrapping yay from source"
     rm -rf "$BUILD_DIR/yay"
     git clone --depth=1 https://aur.archlinux.org/yay.git "$BUILD_DIR/yay"
@@ -40,8 +33,7 @@ install_pkg() {
     yay -S --needed $CONFIRM "$@"
 }
 
-# --- 1. GPU detection --------------------------------------------------------
-
+# --- 1. GPU detection ---
 detect_gpu() {
     local info
     info="$(lspci -nn | grep -Ei 'vga|3d|display' || true)"
@@ -63,20 +55,14 @@ case "$GPU" in
     none)   echo "    No GPU matched, installing mesa only." ;;
 esac
 
-if [[ "$GPU" == "amd" ]] && pacman -Si libva-mesa-driver &>/dev/null; then
-    GPU_PKGS+=(libva-mesa-driver)
-fi
-
-# --- 2. Hyprland + Portals + Kitty -------------------------------------------
-
+# --- 2. Hyprland + Portals + Kitty ---
 echo "==> Hyprland, portals, terminal (Kitty), graphics"
 install_pkg hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk \
     "${GPU_PKGS[@]}" \
     kitty \
     ttf-jetbrains-mono-nerd
 
-# --- 3. Core Shell Tools & Utilities ----------------------------------------
-
+# --- 3. Core Shell Tools & Utilities ---
 echo "==> Core apps and system utilities"
 install_pkg fish eza zoxide direnv \
     fastfetch \
@@ -95,8 +81,7 @@ install_pkg fish eza zoxide direnv \
 echo "==> Login manager"
 install_pkg sddm xorg-server
 
-# --- 4. Quickshell & Noctalia Shell ------------------------------------------
-
+# --- 4. Quickshell & Noctalia Shell ---
 echo "==> Quickshell & Noctalia runtime deps"
 install_pkg brightnessctl ddcutil lm_sensors power-profiles-daemon \
     qt6-base qt6-declarative qt6-imageformats qt6-shadertools \
@@ -105,8 +90,7 @@ install_pkg brightnessctl ddcutil lm_sensors power-profiles-daemon \
     swappy \
     noctalia-git
 
-# --- 5. Pull Noctalia dotfiles & configure components -----------------------
-
+# --- 5. Pull Noctalia dotfiles & configure components ---
 DOTS_DIR="$HOME/.local/share/noctalia-dots"
 if [[ -d "$DOTS_DIR/.git" ]]; then
     git -C "$DOTS_DIR" pull --ff-only || true
@@ -136,11 +120,9 @@ if [[ -f "$DOTS_DIR/starship.toml" ]]; then
     cp "$DOTS_DIR/starship.toml" "$XDG_CONFIG_HOME/starship.toml"
 fi
 
-# Point Hyprland's file explorer variable directly to Kitty running Yazi
 grep -rl '^\$fileExplorer' "$XDG_CONFIG_HOME/hypr" 2>/dev/null \
     | xargs -r sed -i 's|^\(\$fileExplorer *= *\).*|\1kitty -e yazi|' || true
 
-# Yazi integration wrapper for Fish
 mkdir -p "$XDG_CONFIG_HOME/fish/functions"
 cat > "$XDG_CONFIG_HOME/fish/functions/y.fish" <<'EOF'
 function y
@@ -153,8 +135,7 @@ function y
 end
 EOF
 
-# --- 6. Wallpapers ----------------------------------------------------------
-
+# --- 6. Wallpapers ---
 WALLPAPER_REPO="${WALLPAPER_REPO:-https://github.com/Saltyfunnel/Wallpapers.git}"
 WALLPAPER_SRC="$HOME/.local/share/wallpapers"
 WALLPAPER_DEST="$HOME/Pictures/Wallpapers"
@@ -169,45 +150,38 @@ if [[ -d "$WALLPAPER_SRC" ]]; then
     (
         cd "$WALLPAPER_SRC"
         find . -path ./.git -prune -o -type f \
-            \(-iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp'\) -print0 \
+            \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) -print0 \
             | xargs -0 -r cp --update=none --parents -t "$WALLPAPER_DEST"
     )
-    echo "    Wallpapers linked to $WALLPAPER_DEST"
 fi
 
-# --- 7. Browser & Media (Spotify + Spicetify) -------------------------------
-
+# --- 7. Browser & Media ---
 echo "==> Zen Browser"
 install_pkg zen-browser-bin
 xdg-settings set default-web-browser zen.desktop 2>/dev/null || true
 
 echo "==> Spotify + Spicetify"
 if install_pkg spotify spicetify-cli; then
-    # Give Spicetify write access to Spotify binary files
     sudo chmod a+wr /opt/spotify
     sudo chmod -R a+wr /opt/spotify/Apps
 
-    # Ensure spotify config directory and prefs file exist for spicetify initialization
     mkdir -p "$XDG_CONFIG_HOME/spotify"
-    [[ -e "$XDG_CONFIG_HOME/spotify/prefs" ]] \vert{}\vert{} touch "$XDG_CONFIG_HOME/spotify/prefs"
+    [[ -e "$XDG_CONFIG_HOME/spotify/prefs" ]] || touch "$XDG_CONFIG_HOME/spotify/prefs"
 
-    # Initial backup and patch so Spicetify is ready for Noctalia
     spicetify backup apply \
         || echo "    WARN: spicetify apply failed. Launch Spotify once, then run 'spicetify backup apply'."
 else
     echo "    WARN: Spotify or Spicetify installation failed."
 fi
 
-# --- 8. Services -------------------------------------------------------------
-
+# --- 8. Services ---
 echo "==> Enabling system services"
 sudo systemctl enable --now NetworkManager
 sudo systemctl enable --now bluetooth
 sudo systemctl enable --now power-profiles-daemon
 sudo systemctl enable sddm
 
-# --- 9. Shell Default --------------------------------------------------------
-
+# --- 9. Shell Default ---
 if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "/usr/bin/fish" ]]; then
     echo "==> Setting fish as default shell"
     chsh -s /usr/bin/fish

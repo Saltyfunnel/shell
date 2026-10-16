@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # install-noctalia-clean.sh
 #
-# Fresh minimal Arch install -> Hyprland + Noctalia desktop shell (with Spicetify).
+# Fresh minimal Arch install -> Hyprland + Noctalia v5 desktop shell (with Spicetify).
+# Noctalia v5 is a native Wayland shell (no Quickshell/QML), so no Qt shell deps here.
 # File manager: Thunar (GUI) + yazi (TUI).
 
 set -euo pipefail
@@ -84,48 +85,19 @@ install_pkg fish eza zoxide direnv \
 echo "==> Login manager"
 install_pkg sddm xorg-server
 
-# --- 4. Quickshell & Noctalia Shell ---
-echo "==> Quickshell & Noctalia runtime deps"
-install_pkg brightnessctl ddcutil lm_sensors power-profiles-daemon \
-    qt6-base qt6-declarative qt6-imageformats qt6-shadertools \
-    cmake ninja \
-    ttf-material-symbols-variable ttf-rubik-vf ttf-cascadia-code-nerd \
-    swappy \
-    noctalia-git
+# --- 4. Noctalia v5 ---
+# noctalia-git pulls in its own runtime deps and lists the optional ones.
+echo "==> Noctalia"
+install_pkg noctalia-git \
+    brightnessctl ddcutil lm_sensors power-profiles-daemon \
+    swappy
 
-# --- 5. Pull Noctalia dotfiles & configure components ---
-DOTS_DIR="$HOME/.local/share/noctalia-dots"
-if [[ -d "$DOTS_DIR/.git" ]]; then
-    git -C "$DOTS_DIR" pull --ff-only || true
-else
-    git clone https://github.com/noctalia-dev/noctalia.git "$DOTS_DIR" || true
-fi
-
+# --- 5. Config ---
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 mkdir -p "$XDG_CONFIG_HOME"
 
-copy_component() {
-    local src="$1" dest="$2"
-    if [[ -e "$dest" ]]; then
-        mkdir -p "$HOME/.config-backup"
-        cp -a "$dest" "$HOME/.config-backup/"
-    fi
-    mkdir -p "$(dirname "$dest")"
-    cp -rT "$DOTS_DIR/$src" "$dest" 2>/dev/null || true
-}
-
-echo "==> Laying down configuration components"
-copy_component hypr      "$XDG_CONFIG_HOME/hypr"
-copy_component fish      "$XDG_CONFIG_HOME/fish"
-copy_component fastfetch "$XDG_CONFIG_HOME/fastfetch"
-copy_component btop      "$XDG_CONFIG_HOME/btop"
-if [[ -f "$DOTS_DIR/starship.toml" ]]; then
-    cp "$DOTS_DIR/starship.toml" "$XDG_CONFIG_HOME/starship.toml"
-fi
-
 # Hyprland 0.55+ loads ~/.config/hypr/hyprland.lua first and only falls back to
-# the legacy hyprland.conf. If the copy above produced neither, write a minimal
-# Lua config (the legacy .conf format is deprecated).
+# the legacy hyprland.conf. Write a minimal Lua config if there is neither.
 HYPR_DIR="$XDG_CONFIG_HOME/hypr"
 if [[ ! -f "$HYPR_DIR/hyprland.lua" && ! -f "$HYPR_DIR/hyprland.conf" ]]; then
     echo "==> No Hyprland config found, writing a minimal hyprland.lua"
@@ -141,8 +113,7 @@ hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
 hl.env("XCURSOR_SIZE", "24")
 
 hl.on("hyprland.start", function()
-    -- NOTE: check the Noctalia docs for the launch command your version expects.
-    hl.exec_cmd("qs -c noctalia-shell")
+    hl.exec_cmd("noctalia")
     hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
 end)
 
@@ -152,10 +123,22 @@ hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd(tuiFiles))
 hl.bind("SUPER + Q", hl.dsp.window.close())
 hl.bind("SUPER + SHIFT + M", hl.dsp.exit())
 EOF
-elif [[ -f "$HYPR_DIR/hyprland.conf" && ! -f "$HYPR_DIR/hyprland.lua" ]]; then
-    # Legacy .conf layout: point $fileExplorer at Thunar.
-    grep -rl '^\$fileExplorer' "$HYPR_DIR" 2>/dev/null \
-        | xargs -r sed -i 's|^\(\$fileExplorer *= *\).*|\1thunar|' || true
+else
+    echo "    NOTE: existing Hyprland config found, not touching it. To autostart Noctalia add:"
+    echo '      hl.on("hyprland.start", function() hl.exec_cmd("noctalia") end)'
+fi
+
+# Minimal fish config (only if you don't already have one)
+mkdir -p "$XDG_CONFIG_HOME/fish"
+if [[ ! -f "$XDG_CONFIG_HOME/fish/config.fish" ]]; then
+    cat > "$XDG_CONFIG_HOME/fish/config.fish" <<'EOF'
+if status is-interactive
+    starship init fish | source
+    zoxide init fish | source
+    direnv hook fish | source
+    alias ls 'eza --icons'
+end
+EOF
 fi
 
 mkdir -p "$XDG_CONFIG_HOME/fish/functions"
@@ -167,6 +150,13 @@ function y
         builtin cd -- "$cwd"
     end
     rm -f -- "$tmp"
+end
+EOF
+
+# Silence the fish welcome message (an empty fish_greeting function overrides
+# the default, even if the copied config sets the variable).
+cat > "$XDG_CONFIG_HOME/fish/functions/fish_greeting.fish" <<'EOF'
+function fish_greeting
 end
 EOF
 
@@ -212,7 +202,7 @@ fi
 # --- 8. GTK / icon theme defaults + file manager ---
 echo "==> GTK / icon theme defaults"
 # These can fail from a TTY with no D-Bus session; if so, run them once after first login.
-gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark' \
+gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3' \
     || echo "    WARN: gsettings failed. After first login run the gsettings lines in this script."
 gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark' || true
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' || true
@@ -234,9 +224,9 @@ fi
 xdg-user-dirs-update
 
 echo
-echo "==> Installation complete! Reboot, select Hyprland in SDDM, and let Noctalia take over."
+echo "==> Installation complete! Reboot, select Hyprland in SDDM, and Noctalia starts with the session."
 echo
 echo "After first login:"
-echo "  - Noctalia Settings -> Templates: enable GTK and Qt (KColorScheme if you use KDE apps)"
-echo "  - qt6ct: set the icon theme to Papirus-Dark"
+echo "  - Noctalia Settings -> Color Scheme -> Templates: toggle on GTK and Qt"
+echo "  - qt6ct: Color Scheme tab -> pick 'noctalia' -> Apply; Icon Theme tab -> Papirus-Dark"
 echo "  - Fully restart Thunar so it picks up the theme"

@@ -123,33 +123,38 @@ if [[ -f "$DOTS_DIR/starship.toml" ]]; then
     cp "$DOTS_DIR/starship.toml" "$XDG_CONFIG_HOME/starship.toml"
 fi
 
-# If the copy above produced no Hyprland config, write a minimal one.
-if [[ ! -f "$XDG_CONFIG_HOME/hypr/hyprland.conf" ]]; then
-    echo "==> No hyprland.conf found, writing a minimal one"
-    mkdir -p "$XDG_CONFIG_HOME/hypr"
-    cat > "$XDG_CONFIG_HOME/hypr/hyprland.conf" <<'EOF'
-monitor = , preferred, auto, 1
+# Hyprland 0.55+ loads ~/.config/hypr/hyprland.lua first and only falls back to
+# the legacy hyprland.conf. If the copy above produced neither, write a minimal
+# Lua config (the legacy .conf format is deprecated).
+HYPR_DIR="$XDG_CONFIG_HOME/hypr"
+if [[ ! -f "$HYPR_DIR/hyprland.lua" && ! -f "$HYPR_DIR/hyprland.conf" ]]; then
+    echo "==> No Hyprland config found, writing a minimal hyprland.lua"
+    mkdir -p "$HYPR_DIR"
+    cat > "$HYPR_DIR/hyprland.lua" <<'EOF'
+-- Minimal Hyprland (0.55+) Lua config. Extend it from the wiki: https://wiki.hypr.land
 
-$terminal = kitty
-$fileExplorer = thunar
-$tuiFiles = kitty -e yazi
+local terminal     = "kitty"
+local fileExplorer = "thunar"
+local tuiFiles     = "kitty -e yazi"
 
-env = QT_QPA_PLATFORMTHEME,qt6ct
-env = XCURSOR_SIZE,24
+hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
+hl.env("XCURSOR_SIZE", "24")
 
-# NOTE: check the Noctalia docs for the launch command your version expects.
-exec-once = qs -c noctalia-shell
-exec-once = /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+hl.on("hyprland.start", function()
+    -- NOTE: check the Noctalia docs for the launch command your version expects.
+    hl.exec_cmd("qs -c noctalia-shell")
+    hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
+end)
 
-bind = SUPER, Return, exec, $terminal
-bind = SUPER, E, exec, $fileExplorer
-bind = SUPER SHIFT, E, exec, $tuiFiles
-bind = SUPER, Q, killactive
-bind = SUPER SHIFT, M, exit
+hl.bind("SUPER + Return", hl.dsp.exec_cmd(terminal))
+hl.bind("SUPER + E", hl.dsp.exec_cmd(fileExplorer))
+hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd(tuiFiles))
+hl.bind("SUPER + Q", hl.dsp.window.close())
+hl.bind("SUPER + SHIFT + M", hl.dsp.exit())
 EOF
-else
-    # Existing config: point $fileExplorer at Thunar.
-    grep -rl '^\$fileExplorer' "$XDG_CONFIG_HOME/hypr" 2>/dev/null \
+elif [[ -f "$HYPR_DIR/hyprland.conf" && ! -f "$HYPR_DIR/hyprland.lua" ]]; then
+    # Legacy .conf layout: point $fileExplorer at Thunar.
+    grep -rl '^\$fileExplorer' "$HYPR_DIR" 2>/dev/null \
         | xargs -r sed -i 's|^\(\$fileExplorer *= *\).*|\1thunar|' || true
 fi
 

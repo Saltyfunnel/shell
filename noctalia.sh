@@ -2,6 +2,7 @@
 # install-noctalia-clean.sh
 #
 # Fresh minimal Arch install -> Hyprland + Noctalia desktop shell (with Spicetify).
+# File manager: Thunar (GUI) + yazi (TUI).
 
 set -euo pipefail
 
@@ -68,8 +69,10 @@ install_pkg fish eza zoxide direnv \
     fastfetch \
     btop \
     yazi ffmpeg 7zip poppler fd fzf imagemagick \
+    thunar thunar-archive-plugin thunar-volman gvfs tumbler file-roller \
     starship \
     adw-gtk-theme papirus-icon-theme \
+    qt6ct nwg-look \
     gnome-keyring polkit-gnome \
     networkmanager \
     bluez bluez-utils \
@@ -120,8 +123,35 @@ if [[ -f "$DOTS_DIR/starship.toml" ]]; then
     cp "$DOTS_DIR/starship.toml" "$XDG_CONFIG_HOME/starship.toml"
 fi
 
-grep -rl '^\$fileExplorer' "$XDG_CONFIG_HOME/hypr" 2>/dev/null \
-    | xargs -r sed -i 's|^\(\$fileExplorer *= *\).*|\1kitty -e yazi|' || true
+# If the copy above produced no Hyprland config, write a minimal one.
+if [[ ! -f "$XDG_CONFIG_HOME/hypr/hyprland.conf" ]]; then
+    echo "==> No hyprland.conf found, writing a minimal one"
+    mkdir -p "$XDG_CONFIG_HOME/hypr"
+    cat > "$XDG_CONFIG_HOME/hypr/hyprland.conf" <<'EOF'
+monitor = , preferred, auto, 1
+
+$terminal = kitty
+$fileExplorer = thunar
+$tuiFiles = kitty -e yazi
+
+env = QT_QPA_PLATFORMTHEME,qt6ct
+env = XCURSOR_SIZE,24
+
+# NOTE: check the Noctalia docs for the launch command your version expects.
+exec-once = qs -c noctalia-shell
+exec-once = /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+
+bind = SUPER, Return, exec, $terminal
+bind = SUPER, E, exec, $fileExplorer
+bind = SUPER SHIFT, E, exec, $tuiFiles
+bind = SUPER, Q, killactive
+bind = SUPER SHIFT, M, exit
+EOF
+else
+    # Existing config: point $fileExplorer at Thunar.
+    grep -rl '^\$fileExplorer' "$XDG_CONFIG_HOME/hypr" 2>/dev/null \
+        | xargs -r sed -i 's|^\(\$fileExplorer *= *\).*|\1thunar|' || true
+fi
 
 mkdir -p "$XDG_CONFIG_HOME/fish/functions"
 cat > "$XDG_CONFIG_HOME/fish/functions/y.fish" <<'EOF'
@@ -174,14 +204,23 @@ else
     echo "    WARN: Spotify or Spicetify installation failed."
 fi
 
-# --- 8. Services ---
+# --- 8. GTK / icon theme defaults + file manager ---
+echo "==> GTK / icon theme defaults"
+# These can fail from a TTY with no D-Bus session; if so, run them once after first login.
+gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark' \
+    || echo "    WARN: gsettings failed. After first login run the gsettings lines in this script."
+gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark' || true
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' || true
+xdg-mime default thunar.desktop inode/directory || true
+
+# --- 9. Services ---
 echo "==> Enabling system services"
 sudo systemctl enable --now NetworkManager
 sudo systemctl enable --now bluetooth
 sudo systemctl enable --now power-profiles-daemon
 sudo systemctl enable sddm
 
-# --- 9. Shell Default ---
+# --- 10. Shell Default ---
 if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "/usr/bin/fish" ]]; then
     echo "==> Setting fish as default shell"
     chsh -s /usr/bin/fish
@@ -191,3 +230,8 @@ xdg-user-dirs-update
 
 echo
 echo "==> Installation complete! Reboot, select Hyprland in SDDM, and let Noctalia take over."
+echo
+echo "After first login:"
+echo "  - Noctalia Settings -> Templates: enable GTK and Qt (KColorScheme if you use KDE apps)"
+echo "  - qt6ct: set the icon theme to Papirus-Dark"
+echo "  - Fully restart Thunar so it picks up the theme"

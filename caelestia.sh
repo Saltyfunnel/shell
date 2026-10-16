@@ -92,6 +92,7 @@ install_pkg fish eza zoxide direnv \
     btop \
     micro \
     yazi ffmpeg 7zip poppler fd fzf imagemagick \
+    thunar thunar-archive-plugin thunar-volman gvfs tumbler file-roller \
     starship \
     adw-gtk-theme papirus-icon-theme \
     gnome-keyring polkit-gnome \
@@ -175,10 +176,37 @@ cp "$DOTS_DIR/starship.toml" "$XDG_CONFIG_HOME/starship.toml"
 
 (( BACKED_UP )) && echo "    Existing configs backed up to $BACKUP_DIR"
 
-# The dots launch Thunar as the file explorer; point that at yazi in foot.
-# Only touches the $fileExplorer variable line, nothing else.
-grep -rl '^\$fileExplorer' "$XDG_CONFIG_HOME/hypr" 2>/dev/null \
-    | xargs -r sed -i 's|^\(\$fileExplorer *= *\).*|\1foot -e yazi|' || true
+# The dots launch Thunar as the file explorer, so that is left as the default.
+# yazi gets its own keybind (Super+Shift+E) so both stay one keypress away.
+# Hyprland 0.55+ prefers hyprland.lua and only falls back to the legacy
+# hyprland.conf, so handle whichever layout the dots ship.
+# NOTE: if Super+Shift+E is already bound in the dots, both binds will fire;
+# change the key below if that happens.
+HYPR_DIR="$XDG_CONFIG_HOME/hypr"
+if [[ -f "$HYPR_DIR/hyprland.lua" ]]; then
+    if ! grep -q 'foot -e yazi' "$HYPR_DIR/hyprland.lua"; then
+        {
+            echo
+            echo '-- yazi (TUI file manager) alongside Thunar'
+            echo 'hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd("foot -e yazi"))'
+        } >> "$HYPR_DIR/hyprland.lua"
+    fi
+    echo "    NOTE: Lua config detected. If the file explorer isn't Thunar, edit it in $HYPR_DIR."
+elif [[ -f "$HYPR_DIR/hyprland.conf" ]]; then
+    grep -rl '^\$fileExplorer' "$HYPR_DIR" 2>/dev/null \
+        | xargs -r sed -i 's|^\(\$fileExplorer *= *\).*|\1thunar|' || true
+    if ! grep -q 'foot -e yazi' "$HYPR_DIR/hyprland.conf"; then
+        {
+            echo
+            echo "# yazi (TUI file manager) alongside Thunar"
+            echo "bind = SUPER SHIFT, E, exec, foot -e yazi"
+        } >> "$HYPR_DIR/hyprland.conf"
+    fi
+else
+    echo "    WARN: no hyprland.lua or hyprland.conf found in $HYPR_DIR; skipped file manager setup."
+fi
+
+xdg-mime default thunar.desktop inode/directory 2>/dev/null || true
 
 chmod u+x "$XDG_CONFIG_HOME/hypr/scripts/wsaction.fish" 2>/dev/null || true
 mkdir -p "$XDG_CONFIG_HOME/caelestia"
@@ -338,6 +366,7 @@ echo "    Zen (launch it once first so your profile exists), then theme it:"
 echo "      mkdir -p ~/.zen/<profile>/chrome"
 echo "      ln -sf $DOTS_DIR/zen/userChrome.css ~/.zen/<profile>/chrome/userChrome.css"
 echo
-echo "    Yazi: run 'y' in fish (cd's on exit). Its theme is generated at"
+echo "    Files: Thunar is the default file manager; Super+Shift+E opens yazi in foot."
+echo "    Run 'y' in fish for yazi with cd-on-exit. Its theme is generated at"
 echo "    ~/.local/state/caelestia/theme/yazi-theme.toml after the first scheme/wallpaper set."
 echo "    Spotify: launch once; if the theme is missing, run: spicetify backup apply"

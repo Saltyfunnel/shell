@@ -3,7 +3,7 @@
 #
 # Fresh minimal Arch install -> Hyprland + Noctalia v5 desktop shell (with Spicetify).
 # Noctalia v5 is a native Wayland shell (no Quickshell/QML), so no Qt shell deps here.
-# File manager: Thunar (GUI) + yazi (TUI).
+# File manager: Thunar.
 
 set -euo pipefail
 
@@ -17,6 +17,11 @@ mkdir -p "$BUILD_DIR"
 
 CONFIRM="--noconfirm"
 [[ "${REVIEW:-0}" == "1" ]] && CONFIRM=""
+
+echo "==> pacman.conf tweaks (Color, ParallelDownloads, ILoveCandy, multilib for Steam)"
+sudo sed -i 's/^#Color/Color/; s/^#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.conf
+grep -q '^ILoveCandy' /etc/pacman.conf || sudo sed -i '/^\[options\]/a ILoveCandy' /etc/pacman.conf
+sudo sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' /etc/pacman.conf
 
 echo "==> Full system update"
 sudo pacman -Syu --noconfirm
@@ -51,9 +56,9 @@ echo "==> GPU: $GPU"
 
 GPU_PKGS=(mesa)
 case "$GPU" in
-    amd)    GPU_PKGS+=(vulkan-radeon) ;;
-    nvidia) GPU_PKGS+=(nvidia-open-dkms nvidia-utils libva-nvidia-driver linux-headers) ;;
-    intel)  GPU_PKGS+=(vulkan-intel intel-media-driver) ;;
+    amd)    GPU_PKGS+=(vulkan-radeon lib32-mesa lib32-vulkan-radeon) ;;
+    nvidia) GPU_PKGS+=(nvidia-open-dkms nvidia-utils lib32-nvidia-utils libva-nvidia-driver linux-headers) ;;
+    intel)  GPU_PKGS+=(vulkan-intel lib32-mesa lib32-vulkan-intel intel-media-driver) ;;
     none)   echo "    No GPU matched, installing mesa only." ;;
 esac
 
@@ -69,8 +74,9 @@ echo "==> Core apps and system utilities"
 install_pkg fish eza zoxide direnv \
     fastfetch \
     btop \
-    yazi ffmpeg 7zip poppler fd fzf imagemagick \
-    thunar thunar-archive-plugin thunar-volman gvfs tumbler file-roller \
+    ffmpeg 7zip fd fzf imagemagick \
+    thunar thunar-archive-plugin thunar-volman gvfs tumbler ffmpegthumbnailer file-roller \
+    udiskie udisks2 \
     starship \
     adw-gtk-theme papirus-icon-theme \
     qt6ct nwg-look \
@@ -81,6 +87,11 @@ install_pkg fish eza zoxide direnv \
     wl-clipboard cliphist \
     noto-fonts noto-fonts-cjk noto-fonts-emoji \
     curl trash-cli jq lazygit bat ripgrep hyprpicker xdg-user-dirs
+
+echo "==> Apps"
+install_pkg mpv imv qbittorrent libreoffice-fresh \
+    steam gnome-disk-utility ntfs-3g dosfstools \
+    localsend-bin
 
 echo "==> Login manager"
 install_pkg sddm xorg-server
@@ -107,7 +118,6 @@ if [[ ! -f "$HYPR_DIR/hyprland.lua" && ! -f "$HYPR_DIR/hyprland.conf" ]]; then
 
 local terminal     = "kitty"
 local fileExplorer = "thunar"
-local tuiFiles     = "kitty -e yazi"
 
 hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
 hl.env("XCURSOR_SIZE", "24")
@@ -115,11 +125,11 @@ hl.env("XCURSOR_SIZE", "24")
 hl.on("hyprland.start", function()
     hl.exec_cmd("noctalia")
     hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
+    hl.exec_cmd("udiskie")
 end)
 
 hl.bind("SUPER + Return", hl.dsp.exec_cmd(terminal))
 hl.bind("SUPER + E", hl.dsp.exec_cmd(fileExplorer))
-hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd(tuiFiles))
 hl.bind("SUPER + Q", hl.dsp.window.close())
 hl.bind("SUPER + SHIFT + M", hl.dsp.exit())
 EOF
@@ -141,17 +151,26 @@ end
 EOF
 fi
 
-mkdir -p "$XDG_CONFIG_HOME/fish/functions"
-cat > "$XDG_CONFIG_HOME/fish/functions/y.fish" <<'EOF'
-function y
-    set tmp (mktemp -t "yazi-cwd.XXXXXX")
-    command yazi $argv --cwd-file="$tmp"
-    if read -z cwd < "$tmp"; and [ -n "$cwd" ]; and [ "$cwd" != "$PWD" ]
-        builtin cd -- "$cwd"
-    end
-    rm -f -- "$tmp"
-end
+# Thunar custom action: right-click a folder -> Open Kitty Here
+mkdir -p "$XDG_CONFIG_HOME/Thunar"
+if [[ ! -f "$XDG_CONFIG_HOME/Thunar/uca.xml" ]]; then
+    cat > "$XDG_CONFIG_HOME/Thunar/uca.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<actions>
+<action>
+    <icon>kitty</icon>
+    <name>Open Kitty Here</name>
+    <unique-id>kitty-open-here</unique-id>
+    <command>kitty --directory %f</command>
+    <description>Open Kitty terminal in this directory</description>
+    <patterns>*</patterns>
+    <directories/>
+</action>
+</actions>
 EOF
+fi
+
+mkdir -p "$XDG_CONFIG_HOME/fish/functions"
 
 # Silence the fish welcome message (an empty fish_greeting function overrides
 # the default, even if the copied config sets the variable).

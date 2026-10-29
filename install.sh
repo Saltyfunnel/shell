@@ -400,8 +400,13 @@ elif [[ "$HAVE_MATUGEN" != true ]]; then
     print_warn "matugen is not installed, the bar will use its fallback colours"
 else
     echo "$DEFAULT_WALL" | as_user tee "$USER_HOME/.cache/current_wallpaper" >/dev/null
-    run_command "as_user env PATH='$CARGO_PATH' matugen image '$DEFAULT_WALL' -m dark" \
-        "Theming everything from $(basename "$DEFAULT_WALL")"
+    # Not fatal: if theming fails the bar just uses its fallback colours
+    if as_user env PATH="$CARGO_PATH" matugen image "$DEFAULT_WALL" -m dark --prefer saturation \
+            > "$LOG_DIR/matugen.log" 2>&1; then
+        print_ok "Theming everything from $(basename "$DEFAULT_WALL")"
+    else
+        print_warn "matugen failed, the bar will use fallback colours  →  $LOG_DIR/matugen.log"
+    fi
 fi
 
 # Everything above ran as root: hand ownership of your files back to you.

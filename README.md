@@ -11,12 +11,8 @@ git clone <this repo> && cd my-shell
 sudo bash install.sh
 ```
 
-Then add two lines to your Hyprland autostart:
-
-```
-quickshell
-~/.config/scripts/setwall.sh --restore
-```
+`configs/hypr/hyprland.lua` already starts Quickshell and restores your last wallpaper at login.
+Window border colours follow the wallpaper too (matugen writes `~/.config/hypr/colors.lua`).
 
 ## What's here
 
@@ -24,7 +20,7 @@ quickshell
 install.sh                 installs packages, copies configs, themes from a wallpaper
 scripts/setwall.sh         set wallpaper + recolour everything   (--random, --restore, or a path)
 configs/
-  hypr/                    your Hyprland config goes here (copy it from your old repo)
+  hypr/hyprland.lua        Hyprland config (colours from matugen, starts Quickshell)
   waybar/                  optional: old Waybar config as a safety-net bar
   quickshell/              THE SHELL (all the learning happens here)
     shell.qml              the bar layout + "only one card open" rule
@@ -68,4 +64,6 @@ to `configs/matugen/config.toml`. Colour names are Material roles:
 - Thunar/GTK apps pick up new colours when reopened.
 - `setwall.sh` talks to hyprpaper with `hyprctl hyprpaper wallpaper`. If your hyprpaper version
   uses different IPC syntax, that is the one line to change.
+- `Super+W` now picks a random wallpaper with `setwall.sh`; the old `wall.py` picker still uses pywal, so it is parked (commented out in hyprland.lua).
+- `hyprctl reload` runs after each theme change so borders update; it may flicker briefly.
 - Workspace clicks use the Hyprland 0.55+ Lua dispatch syntax (see comment in Workspaces.qml).

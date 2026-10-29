@@ -19,6 +19,7 @@ Window border colours follow the wallpaper too (matugen writes `~/.config/hypr/c
 ```
 install.sh                 installs packages, copies configs, themes from a wallpaper
 scripts/setwall.sh         set wallpaper + recolour everything   (--random, --restore, or a path)
+scripts/recolor-icons.sh   recolours the Colloid folder icons to the wallpaper accent (called by setwall.sh)
 configs/
   hypr/hyprland.lua        Hyprland config (colours from matugen, starts Quickshell)
   waybar/                  optional: old Waybar config as a safety-net bar
@@ -61,7 +62,10 @@ to `configs/matugen/config.toml`. Colour names are Material roles:
 
 ## Known rough edges
 
-- Thunar/GTK apps pick up new colours when reopened.
+- Thunar/GTK apps pick up new colours when reopened (`thunar -q` fully quits it first).
+- Folder icons: only the large scalable ones are coloured; the small sidebar icons stay neutral grey.
+  After reinstalling the icon theme, delete `~/.cache/folder_accent` (the installer does this for you).
+- Wallpapers with several equally strong colours need `--prefer saturation`, already set in the scripts.
 - `setwall.sh` talks to hyprpaper with `hyprctl hyprpaper wallpaper`. If your hyprpaper version
   uses different IPC syntax, that is the one line to change.
 - `Super+W` now picks a random wallpaper with `setwall.sh`; the old `wall.py` picker still uses pywal, so it is parked (commented out in hyprland.lua).

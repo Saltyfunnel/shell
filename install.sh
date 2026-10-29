@@ -366,6 +366,8 @@ if [[ ! -d "$COLLOID_SRC" ]]; then
 fi
 run_command "cd '$COLLOID_SRC' && as_user ./install.sh -d '$USER_HOME/.local/share/icons' -n Colloid-Dynamic -s default" \
     "Installing Colloid-Dynamic icons"
+# fresh icons start from the original blue, so forget any remembered accent
+rm -f "$USER_HOME/.cache/folder_accent"
 
 ################################################################################
 # 9. SERVICES
@@ -404,6 +406,8 @@ else
     if as_user env PATH="$CARGO_PATH" matugen image "$DEFAULT_WALL" -m dark --prefer saturation \
             > "$LOG_DIR/matugen.log" 2>&1; then
         print_ok "Theming everything from $(basename "$DEFAULT_WALL")"
+        as_user "$USER_HOME/.config/scripts/recolor-icons.sh" "$(cat "$USER_HOME/.cache/accent_color")" \
+            > "$LOG_DIR/recolor-icons.log" 2>&1 || print_warn "Folder icon recolour failed  →  $LOG_DIR/recolor-icons.log"
     else
         print_warn "matugen failed, the bar will use fallback colours  →  $LOG_DIR/matugen.log"
     fi

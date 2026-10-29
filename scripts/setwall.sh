@@ -30,3 +30,6 @@ hyprctl hyprpaper wallpaper ",$wall" >/dev/null 2>&1 \
 # 2. Recolour everything from it (Quickshell reloads on its own;
 #    kitty and mako are reloaded by matugen hooks; reopen Thunar to see its new colours)
 matugen image "$wall" -m dark --prefer saturation
+
+# 3. Recolour the folder icons to match
+"$HOME/.config/scripts/recolor-icons.sh" "$(cat "$HOME/.cache/accent_color")"

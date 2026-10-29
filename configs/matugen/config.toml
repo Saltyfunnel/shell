@@ -29,3 +29,7 @@ output_path = "~/.config/quickshell/Colors.qml"
 input_path  = "~/.config/matugen/templates/hypr-colors.lua"
 output_path = "~/.config/hypr/colors.lua"
 post_hook   = "hyprctl reload"
+
+[templates.accent]
+input_path  = "~/.config/matugen/templates/accent.txt"
+output_path = "~/.cache/accent_color"

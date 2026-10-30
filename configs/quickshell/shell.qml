@@ -79,7 +79,7 @@ ShellRoot {
         }
       }
 
-      // ---------- RIGHT ISLAND: Hardware, Media, Volume ----------
+      // ---------- RIGHT ISLAND: Hardware, Media, Volume, Power ----------
       Rectangle {
         anchors.right: parent.right
         anchors.rightMargin: 12
@@ -113,11 +113,18 @@ ShellRoot {
             anchors.verticalCenter: parent.verticalCenter
           }
 
-         ScreenCaptureModule {
+          ScreenCaptureModule {
             anchors.verticalCenter: parent.verticalCenter
-            }
+          }
 
           Volume {
+            openPopup: root.openPopup
+            onToggle: name => root.toggle(name)
+            anchors.verticalCenter: parent.verticalCenter
+          }
+
+          PowerModule {
+            id: powerModule
             openPopup: root.openPopup
             onToggle: name => root.toggle(name)
             anchors.verticalCenter: parent.verticalCenter
@@ -125,10 +132,10 @@ ShellRoot {
         }
       }
 
-      // Native Hyprland focus grab including both the bar and the wallpaper popup window
+      // Native Hyprland focus grab including bar and popup windows
       HyprlandFocusGrab {
         active: root.openPopup !== ""
-        windows: [ barWindow, wallpaperPicker.popup ]
+        windows: [ barWindow, wallpaperPicker.popup, powerModule.popup ]
         onCleared: root.openPopup = ""
       }
     }

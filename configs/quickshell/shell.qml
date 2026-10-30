@@ -1,67 +1,131 @@
-// shell.qml — the entry point. Quickshell loads this file first.
-// Layout: workspaces + window title on the left, clock in the middle, status modules on the right.
 import Quickshell
+import Quickshell.Wayland
+import Quickshell.Hyprland
 import QtQuick
 
 ShellRoot {
   id: root
 
-  // Only ONE card can be open at a time. "" means none are open.
-  // A module calls toggle("volume") -> opens its card, or closes it if already open.
+  // Centralized state tracker to ensure mutually exclusive popups
   property string openPopup: ""
-  function toggle(name) { openPopup = (openPopup === name) ? "" : name }
 
-  // One bar per monitor
+  function toggle(name) {
+    root.openPopup = root.openPopup === name ? "" : name
+  }
+
+  // Multi-monitor support across all active screens
   Variants {
     model: Quickshell.screens
 
     PanelWindow {
+      id: barWindow
       required property var modelData
       screen: modelData
 
-      anchors { top: true; left: true; right: true }
-      margins { top: 6; left: 8; right: 8 }
-      implicitHeight: 38
       color: "transparent"
+      width: screen.width
+      height: 36
 
-      // The floating pill background
+      anchors {
+        top: true
+        left: true
+        right: true
+      }
+
+      // ---------- LEFT ISLAND: Workspaces & Window Title ----------
       Rectangle {
-        anchors.fill: parent
-        radius: 14
+        anchors.left: parent.left
+        anchors.leftMargin: 12
+        anchors.verticalCenter: parent.verticalCenter
+        height: 28
+        width: leftRow.implicitWidth + 20
+        radius: 8
         color: Colors.surface
+        border.color: Colors.accent
+        border.width: 1
 
-        // ---- LEFT ----
         Row {
-          anchors.left: parent.left
-          anchors.leftMargin: 14
-          anchors.verticalCenter: parent.verticalCenter
+          id: leftRow
+          anchors.centerIn: parent
           spacing: 14
 
-          Workspaces {}
-          WindowTitle {}
+          Workspaces {
+            anchors.verticalCenter: parent.verticalCenter
+          }
+
+          WindowTitle {
+            anchors.verticalCenter: parent.verticalCenter
+          }
         }
+      }
 
-        // ---- CENTRE ----
-        Clock { anchors.centerIn: parent }
+      // ---------- CENTER ISLAND: Clock ----------
+      Rectangle {
+        anchors.centerIn: parent
+        height: 28
+        width: centerRow.implicitWidth + 20
+        radius: 8
+        color: Colors.surface
+        border.color: Colors.accent
+        border.width: 1
 
-        // ---- RIGHT ----
         Row {
-          anchors.right: parent.right
-          anchors.rightMargin: 14
-          anchors.verticalCenter: parent.verticalCenter
+          id: centerRow
+          anchors.centerIn: parent
+
+          Clock {
+            anchors.verticalCenter: parent.verticalCenter
+          }
+        }
+      }
+
+      // ---------- RIGHT ISLAND: Hardware, Media, Volume ----------
+      Rectangle {
+        anchors.right: parent.right
+        anchors.rightMargin: 12
+        anchors.verticalCenter: parent.verticalCenter
+        height: 28
+        width: rightRow.implicitWidth + 20
+        radius: 8
+        color: Colors.surface
+        border.color: Colors.accent
+        border.width: 1
+
+        Row {
+          id: rightRow
+          anchors.centerIn: parent
           spacing: 14
 
- Media {
+          Hardware {
+            anchors.verticalCenter: parent.verticalCenter
+          }
+
+          Media {
             openPopup: root.openPopup
             onToggle: name => root.toggle(name)
+            anchors.verticalCenter: parent.verticalCenter
+          }
+
+          WallpaperPicker {
+            id: wallpaperPicker
+            openPopup: root.openPopup
+            onToggle: name => root.toggle(name)
+            anchors.verticalCenter: parent.verticalCenter
           }
 
           Volume {
             openPopup: root.openPopup
             onToggle: name => root.toggle(name)
+            anchors.verticalCenter: parent.verticalCenter
           }
-          // New modules go here, one line each.
         }
+      }
+
+      // Native Hyprland focus grab including both the bar and the wallpaper popup window
+      HyprlandFocusGrab {
+        active: root.openPopup !== ""
+        windows: [ barWindow, wallpaperPicker.popup ]
+        onCleared: root.openPopup = ""
       }
     }
   }

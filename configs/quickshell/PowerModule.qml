@@ -12,8 +12,7 @@ Item {
   signal toggle(string name)
   property alias popup: popupWindow
 
-  property bool localOpen: false
-  property bool isVisible: localOpen || (root.openPopup === root.popupName)
+  property bool isVisible: root.openPopup === root.popupName
 
   implicitWidth: 32
   implicitHeight: 24
@@ -36,7 +35,6 @@ Item {
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
       onClicked: {
-        root.localOpen = !root.localOpen;
         root.toggle(root.popupName);
       }
     }
@@ -70,7 +68,6 @@ Item {
 
       TapHandler {
         onTapped: {
-          root.localOpen = false;
           root.toggle(root.popupName);
         }
       }
@@ -140,7 +137,6 @@ Item {
             label: "Lock"
             actionCmd: "pidof hyprlock || hyprlock"
             onTriggered: {
-              root.localOpen = false;
               root.toggle(root.popupName);
             }
           }
@@ -151,7 +147,6 @@ Item {
             label: "Logout"
             actionCmd: "hyprctl dispatch exit"
             onTriggered: {
-              root.localOpen = false;
               root.toggle(root.popupName);
             }
           }
@@ -162,7 +157,6 @@ Item {
             label: "Reboot"
             actionCmd: "systemctl reboot"
             onTriggered: {
-              root.localOpen = false;
               root.toggle(root.popupName);
             }
           }
@@ -173,7 +167,6 @@ Item {
             label: "Shutdown"
             actionCmd: "systemctl poweroff"
             onTriggered: {
-              root.localOpen = false;
               root.toggle(root.popupName);
             }
           }

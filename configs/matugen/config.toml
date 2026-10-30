@@ -33,3 +33,7 @@ post_hook   = "hyprctl reload"
 [templates.accent]
 input_path  = "~/.config/matugen/templates/accent.txt"
 output_path = "~/.cache/accent_color"
+
+[templates.zed]
+input_path = "~/.config/matugen/templates/zed-theme.json"
+output_path = "~/.config/zed/themes/material-dynamic.json"

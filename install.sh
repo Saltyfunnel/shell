@@ -234,7 +234,7 @@ fi
 
 print_phase "Creating folders"
 
-for d in hypr kitty fish mako scripts quickshell matugen/templates gtk-3.0 gtk-4.0 Thunar; do
+for d in hypr kitty fish mako scripts quickshell matugen/templates gtk-3.0 gtk-4.0 Thunar starship; do
     as_user mkdir -p "$CONFIG_DIR/$d"
 done
 as_user mkdir -p "$USER_HOME/Pictures/Wallpapers" "$USER_HOME/.local/share/icons" "$USER_HOME/.cache"

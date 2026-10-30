@@ -196,6 +196,7 @@ UTILITY=(grim slurp wl-clipboard brightnessctl pacman-contrib
          bluez bluez-utils blueman networkmanager udisks2 udiskie gvfs)
 FILES=(thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller trash-cli)
 MEDIA=(mpv imv ffmpeg yt-dlp cava)
+SETTINGS=(dconf gsettings-desktop-schemas)       # lets GTK apps read the icon theme setting
 APPS=(firefox spotify-launcher qbittorrent gnome-disk-utility)
 GAMING=(steam gamemode lib32-gamemode mangohud lib32-mangohud)
 DEV=(git base-devel curl wget nano jq rust)
@@ -203,7 +204,7 @@ FONTS=(ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji)
 DISK=(ntfs-3g dosfstools unzip p7zip unrar)
 
 ALL_PACKAGES=("${CORE[@]}" "${AUDIO[@]}" "${TERMINAL[@]}" "${UTILITY[@]}" "${FILES[@]}"
-              "${MEDIA[@]}" "${APPS[@]}" "${GAMING[@]}" "${DEV[@]}" "${FONTS[@]}" "${DISK[@]}")
+              "${MEDIA[@]}" "${SETTINGS[@]}" "${APPS[@]}" "${GAMING[@]}" "${DEV[@]}" "${FONTS[@]}" "${DISK[@]}")
 
 run_command "pacman -S --noconfirm --needed ${ALL_PACKAGES[*]}" \
     "Installing ${#ALL_PACKAGES[@]} packages"
@@ -368,6 +369,13 @@ run_command "cd '$COLLOID_SRC' && as_user ./install.sh -d '$USER_HOME/.local/sha
     "Installing Colloid-Dynamic icons"
 # fresh icons start from the original blue, so forget any remembered accent
 rm -f "$USER_HOME/.cache/folder_accent"
+
+# GTK apps (Thunar) read the icon theme from gsettings, not only settings.ini.
+# No desktop session exists yet, so use a temporary bus. hyprland.lua also sets it at login.
+as_user dbus-run-session -- gsettings set org.gnome.desktop.interface icon-theme 'Colloid-Dynamic-Dark' \
+    > "$LOG_DIR/gsettings.log" 2>&1 \
+    && print_ok "Icon theme set for GTK apps" \
+    || print_warn "Could not set icon theme now (hyprland.lua sets it at login)"
 
 ################################################################################
 # 9. SERVICES

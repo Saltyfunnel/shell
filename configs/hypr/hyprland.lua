@@ -30,6 +30,7 @@ hl.on("hyprland.start", function()
     -- hl.exec_cmd("waybar")                                    -- old bar: uncomment if Quickshell breaks
     hl.exec_cmd("mako")
     hl.exec_cmd("udiskie")
+    hl.exec_cmd("gsettings set org.gnome.desktop.interface icon-theme 'Colloid-Dynamic-Dark'")
     hl.exec_cmd("~/.config/scripts/setwall.sh --restore")       -- re-apply last wallpaper + colours
 end)
 

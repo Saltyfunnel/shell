@@ -78,19 +78,17 @@ run_command() {
     print_ok "$desc"
 }
 
-# Copy a folder or a file from the repo into ~/.config without creating backup folders.
+# Copy a folder or a file from the repo into ~/.config if it exists.
 deploy() {  # deploy <repo path> <destination> <label>
     local src="$1" dest="$2" label="$3"
     if [[ -d "$src" ]]; then
-        as_user rm -rf "$dest"
         as_user mkdir -p "$dest"
         run_command "as_user cp -rf '$src/.' '$dest/'" "$label"
     elif [[ -f "$src" ]]; then
-        as_user rm -f "$dest"
         as_user mkdir -p "$(dirname "$dest")"
         run_command "as_user cp -f '$src' '$dest'" "$label"
     else
-        print_info "skipped $label (not in the repo yet)"
+        print_info "skipped $label (not found in repo)"
     fi
 }
 
@@ -250,22 +248,11 @@ deploy "$CONFIGS_SRC/fish"        "$CONFIG_DIR/fish"        "Fish config"
 deploy "$CONFIGS_SRC/mako"        "$CONFIG_DIR/mako"        "Mako config"
 deploy "$CONFIGS_SRC/fastfetch"   "$CONFIG_DIR/fastfetch"   "Fastfetch config"
 deploy "$CONFIGS_SRC/starship"    "$CONFIG_DIR"             "Starship config"
+deploy "$CONFIGS_SRC/gtk-3.0"     "$CONFIG_DIR/gtk-3.0"     "GTK 3 config"
+deploy "$CONFIGS_SRC/gtk-4.0"     "$CONFIG_DIR/gtk-4.0"     "GTK 4 config"
+deploy "$CONFIGS_SRC/Thunar"      "$CONFIG_DIR/Thunar"      "Thunar config"
 deploy "$SCRIPTS_SRC"             "$CONFIG_DIR/scripts"     "User scripts"
 as_user find "$CONFIG_DIR/scripts" -type f -exec chmod +x {} + 2>/dev/null || true
-
-cat > "$CONFIG_DIR/gtk-3.0/settings.ini" << 'EOF'
-[Settings]
-gtk-theme-name=Adwaita-dark
-gtk-icon-theme-name=Colloid-Dynamic-Dark
-gtk-application-prefer-dark-theme=1
-EOF
-cat > "$CONFIG_DIR/gtk-4.0/settings.ini" << 'EOF'
-[Settings]
-gtk-theme-name=Adwaita-dark
-gtk-icon-theme-name=Colloid-Dynamic-Dark
-gtk-application-prefer-dark-theme=1
-EOF
-print_ok "GTK dark base configured"
 
 # GPU environment file (hyprland.lua loads this at startup, so it must exist)
 GPU_ENV_FILE="$CONFIG_DIR/hypr/gpu-env.lua"
@@ -311,23 +298,6 @@ return {
 EOF
 fi
 print_ok "GPU environment written  →  hypr/gpu-env.lua"
-
-# Thunar right-click action: Open Kitty Here
-cat > "$CONFIG_DIR/Thunar/uca.xml" << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<actions>
-<action>
-    <icon>kitty</icon>
-    <name>Open Kitty Here</name>
-    <unique-id>kitty-open-here</unique-id>
-    <command>kitty --directory %f</command>
-    <description>Open Kitty terminal in this directory</description>
-    <patterns>*</patterns>
-    <directories/>
-</action>
-</actions>
-EOF
-print_ok "Thunar 'Open Kitty Here' action added"
 
 ################################################################################
 # 7. WALLPAPERS & DEFAULT SHELL

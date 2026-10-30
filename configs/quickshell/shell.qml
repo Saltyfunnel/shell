@@ -51,6 +51,11 @@ ShellRoot {
           anchors.verticalCenter: parent.verticalCenter
           spacing: 14
 
+ Media {
+            openPopup: root.openPopup
+            onToggle: name => root.toggle(name)
+          }
+
           Volume {
             openPopup: root.openPopup
             onToggle: name => root.toggle(name)

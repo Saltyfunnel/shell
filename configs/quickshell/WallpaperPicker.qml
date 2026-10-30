@@ -12,8 +12,7 @@ Item {
   signal toggle(string name)
   property alias popup: popupWindow
 
-  property bool localOpen: false
-  property bool isVisible: localOpen || (root.openPopup === root.popupName)
+  property bool isVisible: root.openPopup === root.popupName
 
   property string homeDir: "/home/" + Quickshell.env("USER")
   property string wallpaperDir: homeDir + "/Pictures/Wallpapers"
@@ -41,7 +40,6 @@ Item {
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
       onClicked: {
-        root.localOpen = !root.localOpen;
         root.toggle(root.popupName);
       }
     }
@@ -104,7 +102,6 @@ Item {
 
       TapHandler {
         onTapped: {
-          root.localOpen = false;
           root.toggle(root.popupName);
         }
       }
@@ -297,7 +294,6 @@ Item {
                       "export HYPRLAND_INSTANCE_SIGNATURE=\"" + Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") + "\"; " +
                       "\"" + root.homeDir + "/.config/scripts/setwall.sh\" \"" + filePath + "\""
                     ]);
-                    root.localOpen = false;
                     root.toggle(root.popupName);
                   }
                 }

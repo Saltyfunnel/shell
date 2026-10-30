@@ -113,6 +113,10 @@ ShellRoot {
             anchors.verticalCenter: parent.verticalCenter
           }
 
+         ScreenCaptureModule {
+            anchors.verticalCenter: parent.verticalCenter
+            }
+
           Volume {
             openPopup: root.openPopup
             onToggle: name => root.toggle(name)

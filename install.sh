@@ -252,6 +252,7 @@ deploy "$CONFIGS_SRC/matugen"     "$CONFIG_DIR/matugen"     "matugen config & te
 deploy "$CONFIGS_SRC/kitty"       "$CONFIG_DIR/kitty"       "Kitty config"
 deploy "$CONFIGS_SRC/fish"        "$CONFIG_DIR/fish"        "Fish config"
 deploy "$CONFIGS_SRC/mako"        "$CONFIG_DIR/mako"        "Mako config"
+deploy "$CONFIGS_SRC/starship"    "$CONFIG_DIR" "Starship config"
 deploy "$SCRIPTS_SRC"             "$CONFIG_DIR/scripts"     "User scripts"
 as_user find "$CONFIG_DIR/scripts" -type f -exec chmod +x {} + 2>/dev/null || true
 

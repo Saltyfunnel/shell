@@ -6,6 +6,12 @@
 set -euo pipefail
 export PATH="$PATH:$HOME/.cargo/bin"
 
+# Debug logging to catch environment issues
+exec >> /tmp/setwall_debug.log 2>&1
+echo "--- RUN AT $(date) ---"
+echo "Arguments received: $*"
+echo "HYPRLAND_INSTANCE_SIGNATURE: ${HYPRLAND_INSTANCE_SIGNATURE:-NOT_SET}"
+
 WALL_DIR="$HOME/Pictures/Wallpapers"
 STATE="$HOME/.cache/current_wallpaper"
 mkdir -p "$(dirname "$STATE")"

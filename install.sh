@@ -78,19 +78,15 @@ run_command() {
     print_ok "$desc"
 }
 
-# Copy a folder or a file from the repo into ~/.config (backs up what was there once).
+# Copy a folder or a file from the repo into ~/.config without creating backup folders.
 deploy() {  # deploy <repo path> <destination> <label>
     local src="$1" dest="$2" label="$3"
     if [[ -d "$src" ]]; then
-        if [[ -d "$dest" && ! -e "$dest.pre-install.bak" ]]; then
-            as_user cp -a "$dest" "$dest.pre-install.bak"
-        fi
+        as_user rm -rf "$dest"
         as_user mkdir -p "$dest"
         run_command "as_user cp -rf '$src/.' '$dest/'" "$label"
     elif [[ -f "$src" ]]; then
-        if [[ -f "$dest" && ! -e "$dest.pre-install.bak" ]]; then
-            as_user cp -a "$dest" "$dest.pre-install.bak"
-        fi
+        as_user rm -f "$dest"
         as_user mkdir -p "$(dirname "$dest")"
         run_command "as_user cp -f '$src' '$dest'" "$label"
     else

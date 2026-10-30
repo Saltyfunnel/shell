@@ -192,7 +192,7 @@ UTILITY=(grim slurp wl-clipboard brightnessctl pacman-contrib
          bluez bluez-utils blueman networkmanager udisks2 udiskie gvfs)
 FILES=(thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller trash-cli)
 MEDIA=(mpv imv ffmpeg yt-dlp cava)
-SETTINGS=(dconf gsettings-desktop-schemas)       # lets GTK apps read the icon theme setting
+SETTINGS=(dconf gsettings-desktop-schemas)
 APPS=(firefox spotify-launcher qbittorrent gnome-disk-utility zed)
 GAMING=(steam gamemode lib32-gamemode mangohud lib32-mangohud)
 DEV=(git base-devel curl wget nano jq rust)
@@ -249,12 +249,9 @@ deploy "$CONFIGS_SRC/kitty"       "$CONFIG_DIR/kitty"       "Kitty config"
 deploy "$CONFIGS_SRC/fish"        "$CONFIG_DIR/fish"        "Fish config"
 deploy "$CONFIGS_SRC/mako"        "$CONFIG_DIR/mako"        "Mako config"
 deploy "$CONFIGS_SRC/fastfetch"   "$CONFIG_DIR/fastfetch"   "Fastfetch config"
-deploy "$CONFIGS_SRC/starship"    "$CONFIG_DIR" "Starship config"
+deploy "$CONFIGS_SRC/starship"    "$CONFIG_DIR"             "Starship config"
 deploy "$SCRIPTS_SRC"             "$CONFIG_DIR/scripts"     "User scripts"
 as_user find "$CONFIG_DIR/scripts" -type f -exec chmod +x {} + 2>/dev/null || true
-
-# kitty includes colors.conf; make sure it exists even before the first theme run
-as_user touch "$CONFIG_DIR/kitty/colors.conf"
 
 cat > "$CONFIG_DIR/gtk-3.0/settings.ini" << 'EOF'
 [Settings]
@@ -268,7 +265,7 @@ gtk-theme-name=Adwaita-dark
 gtk-icon-theme-name=Colloid-Dynamic-Dark
 gtk-application-prefer-dark-theme=1
 EOF
-print_ok "GTK dark base configured (matugen adds the wallpaper colours on top)"
+print_ok "GTK dark base configured"
 
 # GPU environment file (hyprland.lua loads this at startup, so it must exist)
 GPU_ENV_FILE="$CONFIG_DIR/hypr/gpu-env.lua"
@@ -364,11 +361,8 @@ if [[ ! -d "$COLLOID_SRC" ]]; then
 fi
 run_command "cd '$COLLOID_SRC' && as_user ./install.sh -d '$USER_HOME/.local/share/icons' -n Colloid-Dynamic -s default" \
     "Installing Colloid-Dynamic icons"
-# fresh icons start from the original blue, so forget any remembered accent
 rm -f "$USER_HOME/.cache/folder_accent"
 
-# GTK apps (Thunar) read the icon theme from gsettings, not only settings.ini.
-# No desktop session exists yet, so use a temporary bus. hyprland.lua also sets it at login.
 as_user dbus-run-session -- gsettings set org.gnome.desktop.interface icon-theme 'Colloid-Dynamic-Dark' \
     > "$LOG_DIR/gsettings.log" 2>&1 \
     && print_ok "Icon theme set for GTK apps" \
@@ -389,36 +383,12 @@ for svc in sddm bluetooth NetworkManager; do
 done
 
 ################################################################################
-# 10. FIRST THEME RUN
+# 10. WRAP UP
 ################################################################################
 
-print_phase "Generating colours from a wallpaper"
+print_phase "Finalizing installation"
 
-DEFAULT_WALL=$(find "$USER_HOME/Pictures/Wallpapers" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) | head -n 1 || true)
-
-HAVE_MATUGEN=false
-if command -v matugen >/dev/null 2>&1 || [[ -x "$USER_HOME/.cargo/bin/matugen" ]]; then
-    HAVE_MATUGEN=true
-fi
-
-if [[ -z "$DEFAULT_WALL" ]]; then
-    print_warn "No wallpapers found, the bar will use its fallback colours"
-elif [[ "$HAVE_MATUGEN" != true ]]; then
-    print_warn "matugen is not installed, the bar will use its fallback colours"
-else
-    echo "$DEFAULT_WALL" | as_user tee "$USER_HOME/.cache/current_wallpaper" >/dev/null
-    # Not fatal: if theming fails the bar just uses its fallback colours
-    if as_user env PATH="$CARGO_PATH" matugen image "$DEFAULT_WALL" -m dark --prefer saturation \
-            > "$LOG_DIR/matugen.log" 2>&1; then
-        print_ok "Theming everything from $(basename "$DEFAULT_WALL")"
-        as_user "$USER_HOME/.config/scripts/recolor-icons.sh" "$(cat "$USER_HOME/.cache/accent_color")" \
-            > "$LOG_DIR/recolor-icons.log" 2>&1 || print_warn "Folder icon recolour failed  →  $LOG_DIR/recolor-icons.log"
-    else
-        print_warn "matugen failed, the bar will use fallback colours  →  $LOG_DIR/matugen.log"
-    fi
-fi
-
-# Everything above ran as root: hand ownership of your files back to you.
+# Hand ownership of your files back to you
 for p in "$CONFIG_DIR" "$USER_HOME/.cache" "$USER_HOME/Pictures" "$USER_HOME/.local"; do
     [[ -e "$p" ]] && chown -R "$USER_NAME:$USER_NAME" "$p"
 done

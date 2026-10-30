@@ -1,0 +1,315 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+THEME_NAME="material-sddm"
+THEME_DIR="/usr/share/sddm/themes/${THEME_NAME}"
+SDDM_CONF_DIR="/etc/sddm.conf.d"
+CURRENT_USER="$(logname 2>/dev/null || echo "${SUDO_USER:-$USER}")"
+USER_HOME="$(getent passwd "${CURRENT_USER}" | cut -d: -f6)"
+SETWALL_SCRIPT="${USER_HOME}/.config/scripts/setwall.sh"
+GLOBAL_WAL_CACHE="/var/cache/wal"
+
+echo "==> [SDDM Setup] Starting SDDM + Material integration for user: ${CURRENT_USER}..."
+
+# 0. Unlock user account if locked by pam_faillock
+echo "==> [SDDM Setup] Unlocking account ${CURRENT_USER}..."
+sudo faillock --user "${CURRENT_USER}" --reset 2>/dev/null || true
+
+# 1. Install required packages
+echo "==> [SDDM Setup] Installing required system packages..."
+sudo pacman -S --needed --noconfirm sddm qt5-quickcontrols qt5-quickcontrols2 qt5-graphicaleffects
+
+# 2. Create SDDM theme and global cache directories
+echo "==> [SDDM Setup] Creating directories..."
+sudo mkdir -p "${THEME_DIR}"
+sudo mkdir -p "${GLOBAL_WAL_CACHE}"
+
+# Allow the user to write directly to /var/cache/wal so setwall.sh doesn't need sudo
+sudo chown -R "${CURRENT_USER}:${CURRENT_USER}" "${GLOBAL_WAL_CACHE}"
+sudo chmod 755 "${GLOBAL_WAL_CACHE}"
+
+# Sync current colors to global cache if available, or initialize safe fallback
+if [ -f "${USER_HOME}/.cache/wal/colors.json" ]; then
+    cp "${USER_HOME}/.cache/wal/colors.json" "${GLOBAL_WAL_CACHE}/colors.json"
+else
+    echo '{"special":{"background":"#1e1e2e","foreground":"#cdd6f4"},"colors":{"color0":"#11111b","color4":"#89b4fa"}}' > "${GLOBAL_WAL_CACHE}/colors.json"
+fi
+
+chmod 644 "${GLOBAL_WAL_CACHE}/colors.json"
+
+# 3. Write Main.qml using /var/cache/wal/colors.json (supporting Material / Pywal schema)
+echo "==> [SDDM Setup] Writing Main.qml..."
+sudo bash -c "cat << 'EOF' > '${THEME_DIR}/Main.qml'
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
+
+Rectangle {
+    id: root
+    width: 1920
+    height: 1080
+
+    // Default fallback colors (Material Design dark theme defaults)
+    property color colorBg: \"#1e1e2e\"
+    property color colorFg: \"#cdd6f4\"
+    property color colorAccent: \"#89b4fa\"
+    property color colorInputBg: \"#11111b\"
+
+    // Global location accessible by sddm user
+    readonly property string materialJsonPath: \"file:///var/cache/wal/colors.json\"
+
+    function loadMaterialColors() {
+        var xhr = new XMLHttpRequest();
+        xhr.open(\"GET\", root.materialJsonPath, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200 || xhr.status === 0) {
+                    try {
+                        var colors = JSON.parse(xhr.responseText);
+
+                        // Support Material structures (special/colors or direct keys)
+                        if (colors.special) {
+                            root.colorBg = colors.special.background || root.colorBg;
+                            root.colorFg = colors.special.foreground || root.colorFg;
+                        } else if (colors.background) {
+                            root.colorBg = colors.background;
+                        }
+
+                        if (colors.colors) {
+                            root.colorAccent = colors.colors.color4 || colors.colors.primary || root.colorAccent;
+                            root.colorInputBg = colors.colors.color0 || colors.colors.surface || root.colorInputBg;
+                        } else {
+                            if (colors.primary) root.colorAccent = colors.primary;
+                            if (colors.surface) root.colorInputBg = colors.surface;
+                        }
+                    } catch (e) {
+                        console.log(\"Failed to parse Material JSON, using fallback colors.\");
+                    }
+                }
+            }
+        };
+        xhr.send();
+    }
+
+    Component.onCompleted: {
+        loadMaterialColors();
+    }
+
+    color: root.colorBg
+
+    // Center Card Container
+    Rectangle {
+        anchors.centerIn: parent
+        width: 360
+        height: 380
+        radius: 16
+        color: Qt.rgba(root.colorInputBg.r, root.colorInputBg.g, root.colorInputBg.b, 0.6)
+        border.color: root.colorAccent
+        border.width: 1
+
+        ColumnLayout {
+            anchors.centerIn: parent
+            spacing: 20
+            width: parent.width - 60
+
+            // User Avatar / Icon Indicator
+            Rectangle {
+                Layout.alignment: Qt.AlignHCenter
+                width: 72
+                height: 72
+                radius: 36
+                color: root.colorAccent
+
+                Text {
+                    anchors.centerIn: parent
+                    text: usernameInput.text.length > 0 ? usernameInput.text.substring(0, 1).toUpperCase() : \"?\"
+                    color: root.colorBg
+                    font.pixelSize: 32
+                    font.bold: true
+                    font.family: \"Hack Nerd Font\"
+                }
+            }
+
+            // Username Input Field
+            TextField {
+                id: usernameInput
+                Layout.fillWidth: true
+                placeholderText: \"Username\"
+                text: userModel.lastUser
+                font.family: \"Hack Nerd Font\"
+                font.pixelSize: 14
+                color: root.colorFg
+                background: Rectangle {
+                    color: Qt.darker(root.colorInputBg, 1.2)
+                    radius: 8
+                    border.color: usernameInput.activeFocus ? root.colorAccent : \"transparent\"
+                    border.width: 1
+                }
+            }
+
+            // Password Input Field
+            TextField {
+                id: passwordInput
+                Layout.fillWidth: true
+                placeholderText: \"Password\"
+                echoMode: TextInput.Password
+                font.family: \"Hack Nerd Font\"
+                font.pixelSize: 14
+                color: root.colorFg
+                focus: true
+                background: Rectangle {
+                    color: Qt.darker(root.colorInputBg, 1.2)
+                    radius: 8
+                    border.color: passwordInput.activeFocus ? root.colorAccent : \"transparent\"
+                    border.width: 1
+                }
+                onAccepted: sddm.login(usernameInput.text, passwordInput.text, sessionSelect.currentIndex)
+            }
+
+            // Session Selector
+            ComboBox {
+                id: sessionSelect
+                Layout.fillWidth: true
+                model: sessionModel
+                textRole: \"name\"
+                currentIndex: sessionModel.lastIndex
+                font.family: \"Hack Nerd Font\"
+                font.pixelSize: 12
+            }
+
+            // Login Button
+            Button {
+                Layout.fillWidth: true
+                height: 40
+                onClicked: sddm.login(usernameInput.text, passwordInput.text, sessionSelect.currentIndex)
+
+                contentItem: Text {
+                    text: \"LOGIN\"
+                    color: root.colorBg
+                    font.bold: true
+                    font.family: \"Hack Nerd Font\"
+                    font.pixelSize: 14
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                background: Rectangle {
+                    color: parent.down ? Qt.darker(root.colorAccent, 1.2) : root.colorAccent
+                    radius: 8
+                }
+            }
+        }
+    }
+
+    // Power buttons (bottom-right)
+    Row {
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: 24
+        spacing: 12
+
+        Button {
+            id: rebootBtn
+            visible: sddm.canReboot
+            width: 40
+            height: 40
+            hoverEnabled: true
+            onClicked: sddm.reboot()
+
+            ToolTip.visible: hovered
+            ToolTip.text: \"Reboot\"
+
+            contentItem: Text {
+                text: \"\uf021\"
+                color: rebootBtn.hovered ? root.colorBg : root.colorFg
+                font.family: \"Hack Nerd Font\"
+                font.pixelSize: 18
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            background: Rectangle {
+                radius: 8
+                color: rebootBtn.hovered ? root.colorAccent : Qt.rgba(root.colorInputBg.r, root.colorInputBg.g, root.colorInputBg.b, 0.6)
+                border.color: root.colorAccent
+                border.width: 1
+            }
+        }
+
+        Button {
+            id: powerBtn
+            visible: sddm.canPowerOff
+            width: 40
+            height: 40
+            hoverEnabled: true
+            onClicked: sddm.powerOff()
+
+            ToolTip.visible: hovered
+            ToolTip.text: \"Shut down\"
+
+            contentItem: Text {
+                text: \"\uf011\"
+                color: powerBtn.hovered ? root.colorBg : root.colorFg
+                font.family: \"Hack Nerd Font\"
+                font.pixelSize: 18
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            background: Rectangle {
+                radius: 8
+                color: powerBtn.hovered ? root.colorAccent : Qt.rgba(root.colorInputBg.r, root.colorInputBg.g, root.colorInputBg.b, 0.6)
+                border.color: root.colorAccent
+                border.width: 1
+            }
+        }
+    }
+}
+EOF"
+
+# 4. Write metadata.desktop
+echo "==> [SDDM Setup] Writing metadata.desktop..."
+sudo bash -c "cat << 'EOF' > '${THEME_DIR}/metadata.desktop'
+[SddmGreeterTheme]
+Name=${THEME_NAME}
+Description=A sleek minimalist theme that imports Material colors dynamically
+Author=Custom
+Type=sddm-theme
+ConfigFile=theme.conf
+MainScript=Main.qml
+EOF"
+
+# 5. Enable SDDM Theme
+echo "==> [SDDM Setup] Configuring SDDM to use ${THEME_NAME}..."
+sudo mkdir -p "${SDDM_CONF_DIR}"
+sudo bash -c "cat << 'EOF' > '${SDDM_CONF_DIR}/theme.conf'
+[Theme]
+Current=${THEME_NAME}
+EOF"
+
+# 6. Inject global cache sync into setwall.sh safely
+if [ -f "${SETWALL_SCRIPT}" ]; then
+    echo "==> [SDDM Setup] Patching setwall.sh at ${SETWALL_SCRIPT}..."
+    if ! grep -q "/var/cache/wal/colors.json" "${SETWALL_SCRIPT}"; then
+        cat << 'HOOK' >> "${SETWALL_SCRIPT}"
+
+# Sync colors to global cache for SDDM access
+if [ -f "$HOME/.cache/wal/colors.json" ]; then
+    cp -f "$HOME/.cache/wal/colors.json" /var/cache/wal/colors.json 2>/dev/null || true
+    chmod 644 /var/cache/wal/colors.json 2>/dev/null || true
+fi
+HOOK
+        echo "==> [SDDM Setup] Successfully appended sync hook to ${SETWALL_SCRIPT}!"
+    else
+        echo "==> [SDDM Setup] setwall.sh already contains global sync logic. Skipping patch."
+    fi
+else
+    echo "==> [SDDM Setup] Warning: setwall.sh not found at ${SETWALL_SCRIPT}."
+fi
+
+echo "==> [SDDM Setup] Restarting SDDM..."
+sudo systemctl restart sddm
+
+echo "==> [SDDM Setup] SDDM Material installation finished!"

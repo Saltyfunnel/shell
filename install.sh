@@ -234,7 +234,7 @@ fi
 
 print_phase "Creating folders"
 
-for d in hypr kitty fish mako scripts quickshell matugen/templates gtk-3.0 gtk-4.0 Thunar starship; do
+for d in hypr kitty fish mako scripts quickshell matugen/templates gtk-3.0 gtk-4.0 Thunar starship fastfetch; do
     as_user mkdir -p "$CONFIG_DIR/$d"
 done
 as_user mkdir -p "$USER_HOME/Pictures/Wallpapers" "$USER_HOME/.local/share/icons" "$USER_HOME/.cache"
@@ -252,6 +252,7 @@ deploy "$CONFIGS_SRC/matugen"     "$CONFIG_DIR/matugen"     "matugen config & te
 deploy "$CONFIGS_SRC/kitty"       "$CONFIG_DIR/kitty"       "Kitty config"
 deploy "$CONFIGS_SRC/fish"        "$CONFIG_DIR/fish"        "Fish config"
 deploy "$CONFIGS_SRC/mako"        "$CONFIG_DIR/mako"        "Mako config"
+deploy "$CONFIGS_SRC/fastfetch"   "$CONFIG_DIR/fastfetch"   "Fastfetch config"
 deploy "$CONFIGS_SRC/starship"    "$CONFIG_DIR" "Starship config"
 deploy "$SCRIPTS_SRC"             "$CONFIG_DIR/scripts"     "User scripts"
 as_user find "$CONFIG_DIR/scripts" -type f -exec chmod +x {} + 2>/dev/null || true

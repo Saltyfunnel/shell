@@ -37,3 +37,7 @@ output_path = "~/.cache/accent_color"
 [templates.zed]
 input_path = "~/.config/matugen/templates/zed-theme.json"
 output_path = "~/.config/zed/themes/material-dynamic.json"
+
+[templates.fastfetch]
+input_path  = "~/.config/matugen/templates/fastfetch.jsonc"
+output_path = "~/.config/fastfetch/config.jsonc"

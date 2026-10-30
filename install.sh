@@ -189,7 +189,7 @@ print_phase "Installing packages"
 
 CORE=(hyprland hyprpaper xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
       polkit-kde-agent sddm qt6-5compat qt6-declarative qt6-svg qt5-wayland qt6-wayland
-      mako waybar)                                   # waybar = safety-net bar until the Quickshell one is ready
+      mako)
 AUDIO=(pipewire pipewire-pulse pipewire-alsa wireplumber playerctl pavucontrol)
 TERMINAL=(kitty fish starship fastfetch btop)
 UTILITY=(grim slurp wl-clipboard brightnessctl pacman-contrib
@@ -252,7 +252,6 @@ deploy "$CONFIGS_SRC/matugen"     "$CONFIG_DIR/matugen"     "matugen config & te
 deploy "$CONFIGS_SRC/kitty"       "$CONFIG_DIR/kitty"       "Kitty config"
 deploy "$CONFIGS_SRC/fish"        "$CONFIG_DIR/fish"        "Fish config"
 deploy "$CONFIGS_SRC/mako"        "$CONFIG_DIR/mako"        "Mako config"
-deploy "$CONFIGS_SRC/waybar"      "$CONFIG_DIR/waybar"      "Waybar config (fallback bar)"
 deploy "$SCRIPTS_SRC"             "$CONFIG_DIR/scripts"     "User scripts"
 as_user find "$CONFIG_DIR/scripts" -type f -exec chmod +x {} + 2>/dev/null || true
 

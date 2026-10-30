@@ -7,7 +7,7 @@ import QtQuick.Window
 Item {
   id: root
 
-  property string popupName: "wallpaper_picker"
+  property string popupName: "wallpaper"
   property string openPopup: ""
   signal toggle(string name)
   property alias popup: popupWindow
@@ -17,8 +17,7 @@ Item {
 
   property string homeDir: "/home/" + Quickshell.env("USER")
   property string wallpaperDir: homeDir + "/Pictures/Wallpapers"
-
-  Component.onCompleted: console.log(">>> WallpaperPicker loaded successfully!")
+  property string searchQuery: ""
 
   implicitWidth: 32
   implicitHeight: 24
@@ -43,7 +42,6 @@ Item {
       cursorShape: Qt.PointingHandCursor
       onClicked: {
         root.localOpen = !root.localOpen;
-        console.log(">>> Bar icon clicked. localOpen is now:", root.localOpen);
         root.toggle(root.popupName);
       }
     }
@@ -65,25 +63,31 @@ Item {
     }
 
     onVisibleChanged: {
-      console.log(">>> PanelWindow visibility changed to:", visible);
       if (!visible) {
         wallpaperModel.clear();
+        root.searchQuery = "";
       } else {
         popupWindow.requestActivate();
-        listView.forceActiveFocus();
+        searchField.forceActiveFocus();
       }
     }
 
-    // Scan wallpaper directory
+    // Scan wallpaper directory automatically when visible
     Process {
-      id: listWallpapers
+      id: loadWallpapers
       command: ["sh", "-c", "find " + root.wallpaperDir + " -maxdepth 1 -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.webp' -o -name '*.jpeg' \\) | sort"]
       running: root.isVisible
+      onRunningChanged: {
+        if (running) {
+          wallpaperModel.clear();
+        }
+      }
       stdout: SplitParser {
         onRead: data => {
           var path = data.trim();
           if (path !== "") {
-            wallpaperModel.append({ "filePath": path, "fileName": path.split("/").pop() })
+            var name = path.split("/").pop();
+            wallpaperModel.append({ "filePath": path, "fileName": name });
           }
         }
       }
@@ -100,20 +104,21 @@ Item {
 
       TapHandler {
         onTapped: {
-          console.log(">>> Backdrop tapped, closing picker");
           root.localOpen = false;
           root.toggle(root.popupName);
         }
       }
 
-      // Centered Floating Carousel Card
+      // Centered Floating Grid Card
       Rectangle {
         id: floatingCard
         anchors.centerIn: parent
-        width: 1100
-        height: 440
+        width: 980
+        height: 640
         radius: 18
         color: Colors.surface
+        border.color: Colors.accent
+        border.width: 1.2
         clip: true
 
         // Absorb clicks inside the card so backdrop doesn't close it
@@ -127,151 +132,173 @@ Item {
           anchors.margins: 24
           spacing: 16
 
-          // Header Title & Active Filename
+          // Header: Title & Search Bar
           Row {
             width: parent.width
-            height: 30
-            spacing: 12
+            height: 40
+            spacing: 16
 
-            Text {
-              text: "󰸉"
-              color: Colors.accent
-              font.family: "JetBrainsMono Nerd Font"
-              font.pixelSize: 20
+            Row {
+              spacing: 10
               anchors.verticalCenter: parent.verticalCenter
+
+              Text {
+                text: "󰸉"
+                color: Colors.accent
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 22
+                anchors.verticalCenter: parent.verticalCenter
+              }
+
+              Text {
+                text: "Wallpapers"
+                color: Colors.text
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 18
+                font.bold: true
+                anchors.verticalCenter: parent.verticalCenter
+              }
             }
 
-            Text {
-              text: wallpaperModel.count > 0 && listView.currentIndex >= 0 && listView.currentIndex < wallpaperModel.count ? wallpaperModel.get(listView.currentIndex).fileName : "Select Wallpaper"
-              color: Colors.text
-              font.family: "JetBrainsMono Nerd Font"
-              font.pixelSize: 16
-              font.bold: true
+            // Search Input Box
+            Rectangle {
+              width: 320
+              height: 38
+              radius: 10
+              color: Colors.card
+              border.color: searchField.activeFocus ? Colors.accent : "transparent"
+              border.width: 1.2
               anchors.verticalCenter: parent.verticalCenter
-              elide: Text.ElideMiddle
-              width: parent.width - 60
+
+              Row {
+                anchors.fill: parent
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                spacing: 10
+
+                Text {
+                  text: "󰍉"
+                  color: Colors.accent
+                  font.family: "JetBrainsMono Nerd Font"
+                  font.pixelSize: 14
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+
+                TextInput {
+                  id: searchField
+                  width: parent.width - 30
+                  height: parent.height
+                  color: Colors.text
+                  font.family: "JetBrainsMono Nerd Font"
+                  font.pixelSize: 13
+                  anchors.verticalCenter: parent.verticalCenter
+                  verticalAlignment: TextInput.AlignVCenter
+                  clip: true
+
+                  onTextChanged: {
+                    root.searchQuery = text.trim().toLowerCase();
+                  }
+
+                  Text {
+                    text: "Search wallpapers..."
+                    color: Colors.text
+                    opacity: 0.4
+                    font.family: "JetBrainsMono Nerd Font"
+                    font.pixelSize: 13
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: searchField.text === ""
+                  }
+                }
+              }
             }
           }
 
-          // Horizontal Cover Flow ListView Carousel Container
+          // Subtle Divider
           Item {
             width: parent.width
-            height: 300
+            height: 4
+            Rectangle {
+              anchors.centerIn: parent
+              width: parent.width
+              height: 1
+              color: Colors.accent
+              opacity: 0.2
+            }
+          }
 
-            ListView {
-              id: listView
-              anchors.fill: parent
-              orientation: ListView.Horizontal
-              model: wallpaperModel
-              spacing: 24
-              clip: false
-              focus: true
-              preferredHighlightBegin: parent.width / 2 - 110
-              preferredHighlightEnd: parent.width / 2 + 110
-              highlightRangeMode: ListView.StrictlyEnforceRange
-              highlightMoveDuration: 200
+          // Direct GridView (Flickable handles its own scrolling)
+          GridView {
+            id: gridView
+            width: parent.width
+            height: 500
+            cellWidth: 220
+            cellHeight: 165
+            model: wallpaperModel
+            clip: true
+            focus: true
 
-              // Keyboard navigation and Enter/Escape handler
-              Keys.onPressed: function(event) {
-                if (event.key === Qt.Key_Left || event.key === Qt.Key_H || event.key === Qt.Key_A) {
-                  if (listView.currentIndex > 0) {
-                    listView.currentIndex--;
-                    listView.positionViewAtIndex(listView.currentIndex, ListView.Center);
-                  }
-                  event.accepted = true;
-                } else if (event.key === Qt.Key_Right || event.key === Qt.Key_L || event.key === Qt.Key_D) {
-                  if (listView.currentIndex < wallpaperModel.count - 1) {
-                    listView.currentIndex++;
-                    listView.positionViewAtIndex(listView.currentIndex, ListView.Center);
-                  }
-                  event.accepted = true;
-                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                  var item = wallpaperModel.get(listView.currentIndex);
-                  if (item) {
-                    console.log(">>> Enter pressed, setting wallpaper:", item.filePath);
-                    Quickshell.execDetached([
-                      "sh", "-c",
-                      "export PATH=\"$PATH:" + root.homeDir + "/.cargo/bin\"; " +
-                      "export HYPRLAND_INSTANCE_SIGNATURE=\"" + Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") + "\"; " +
-                      "\"" + root.homeDir + "/.config/scripts/setwall.sh\" \"" + item.filePath + "\""
-                    ]);
-                    root.localOpen = false;
-                    root.toggle(root.popupName);
-                  }
-                  event.accepted = true;
-                } else if (event.key === Qt.Key_Escape) {
-                  console.log(">>> Escape pressed, closing picker");
-                  root.localOpen = false;
-                  root.toggle(root.popupName);
-                  event.accepted = true;
-                }
-              }
+            delegate: Item {
+              width: gridView.cellWidth
+              height: gridView.cellHeight
 
-              delegate: Item {
-                id: cardDelegate
-                width: 210
-                height: 280
+              readonly property bool matchesSearch: root.searchQuery === "" || fileName.toLowerCase().includes(root.searchQuery)
+              visible: matchesSearch
 
-                property real viewCenterX: listView.contentX + listView.width / 2
-                property real itemCenterX: x + width / 2
-                property real distance: Math.abs(viewCenterX - itemCenterX)
-                property real progress: Math.min(distance / (listView.width / 2.5), 1.0)
-
-                scale: 1.45 - (0.5 * progress)
-                opacity: 1.0 - (0.65 * progress)
-                z: 100 - Math.round(distance)
-
-                Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-                Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+              Item {
+                anchors.fill: parent
+                anchors.margins: 6
+                visible: parent.visible
 
                 Rectangle {
                   anchors.fill: parent
-                  radius: 16
+                  radius: 12
                   color: Colors.card
+                  border.color: mouseArea.containsMouse ? Colors.accent : "transparent"
+                  border.width: 1.5
                   clip: true
 
-                  Rectangle {
+                  Image {
                     anchors.fill: parent
-                    anchors.margins: 4
-                    radius: 12
-                    color: "black"
-                    clip: true
+                    source: "file://" + filePath
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    smooth: true
+                  }
 
-                    Image {
-                      anchors.fill: parent
-                      source: "file://" + filePath
-                      fillMode: Image.PreserveAspectCrop
-                      asynchronous: true
-                      smooth: true
-                    }
+                  // Bottom Filename Label Banner
+                  Rectangle {
+                    anchors.bottom: parent.bottom
+                    width: parent.width
+                    height: 28
+                    color: "#aa000000"
 
-                    Rectangle {
-                      anchors.fill: parent
-                      color: "black"
-                      opacity: listView.currentIndex === index ? 0.0 : 0.45
-                      Behavior on opacity { NumberAnimation { duration: 120 } }
+                    Text {
+                      anchors.centerIn: parent
+                      width: parent.width - 12
+                      text: fileName
+                      color: Colors.text
+                      font.family: "JetBrainsMono Nerd Font"
+                      font.pixelSize: 11
+                      elide: Text.ElideMiddle
+                      horizontalAlignment: Text.AlignHCenter
                     }
                   }
                 }
 
                 MouseArea {
+                  id: mouseArea
                   anchors.fill: parent
+                  hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
                   onClicked: {
-                    if (listView.currentIndex !== index) {
-                      listView.currentIndex = index;
-                      listView.positionViewAtIndex(index, ListView.Center);
-                    } else {
-                      console.log(">>> Thumbnail clicked to set wallpaper:", filePath);
-                      Quickshell.execDetached([
-                        "sh", "-c",
-                        "export PATH=\"$PATH:" + root.homeDir + "/.cargo/bin\"; " +
-                        "export HYPRLAND_INSTANCE_SIGNATURE=\"" + Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") + "\"; " +
-                        "\"" + root.homeDir + "/.config/scripts/setwall.sh\" \"" + filePath + "\""
-                      ]);
-                      root.localOpen = false;
-                      root.toggle(root.popupName);
-                    }
+                    Quickshell.execDetached([
+                      "sh", "-c",
+                      "export PATH=\"$PATH:" + root.homeDir + "/.cargo/bin\"; " +
+                      "export HYPRLAND_INSTANCE_SIGNATURE=\"" + Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") + "\"; " +
+                      "\"" + root.homeDir + "/.config/scripts/setwall.sh\" \"" + filePath + "\""
+                    ]);
+                    root.localOpen = false;
+                    root.toggle(root.popupName);
                   }
                 }
               }
@@ -281,7 +308,7 @@ Item {
           // Hint Footer
           Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "← → / Scroll to browse   ·   Enter to set   ·   Esc to close"
+            text: "Click to apply wallpaper    ·    Type to search    ·    Esc to close"
             color: Colors.text
             opacity: 0.6
             font.family: "JetBrainsMono Nerd Font"

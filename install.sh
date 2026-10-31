@@ -186,7 +186,7 @@ CORE=(hyprland hyprpaper xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
       mako)
 AUDIO=(pipewire pipewire-pulse pipewire-alsa wireplumber playerctl pavucontrol)
 TERMINAL=(kitty fish starship fastfetch btop)
-UTILITY=(grim slurp wl-clipboard brightnessctl pacman-contrib
+UTILITY=(grim slurp wl-clipboard brightnessctl pacman-contrib wf-recorder upower libnotify
          bluez bluez-utils blueman networkmanager udisks2 udiskie gvfs)
 FILES=(thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller trash-cli)
 MEDIA=(mpv imv ffmpeg yt-dlp cava)
@@ -228,7 +228,7 @@ fi
 
 print_phase "Creating folders"
 
-for d in hypr kitty fish mako scripts quickshell matugen/templates gtk-3.0 gtk-4.0 Thunar starship fastfetch; do
+for d in hypr kitty fish mako scripts quickshell matugen/templates gtk-3.0 gtk-4.0 Thunar fastfetch zed/themes; do
     as_user mkdir -p "$CONFIG_DIR/$d"
 done
 as_user mkdir -p "$USER_HOME/Pictures/Wallpapers" "$USER_HOME/.local/share/icons" "$USER_HOME/.cache"
@@ -253,6 +253,7 @@ deploy "$CONFIGS_SRC/gtk-4.0"     "$CONFIG_DIR/gtk-4.0"     "GTK 4 config"
 deploy "$CONFIGS_SRC/Thunar"      "$CONFIG_DIR/Thunar"      "Thunar config"
 deploy "$SCRIPTS_SRC"             "$CONFIG_DIR/scripts"     "User scripts"
 as_user find "$CONFIG_DIR/scripts" -type f -exec chmod +x {} + 2>/dev/null || true
+as_user touch "$CONFIG_DIR/kitty/colors.conf"
 
 # GPU environment file (hyprland.lua loads this at startup, so it must exist)
 GPU_ENV_FILE="$CONFIG_DIR/hypr/gpu-env.lua"
@@ -371,10 +372,7 @@ print_ok "Ownership set"
 echo ""
 hr
 echo -e "\n    ${BLD}${BGRN}Install complete.${RST}\n"
-echo -e "    ${BWHT}Before you reboot, add two startup lines to your Hyprland config:${RST}"
-echo -e "      ${DIM}quickshell${RST}"
-echo -e "      ${DIM}~/.config/scripts/setwall.sh --restore${RST}"
-echo -e "    ${DIM}(use whatever autostart syntax your config already uses)${RST}"
+echo -e "    ${DIM}Colours and the wallpaper are generated at first login.${RST}"
 echo ""
 echo -e "    ${DIM}logs: ${LOG_DIR}${RST}"
 hr

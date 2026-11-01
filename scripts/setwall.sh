@@ -39,3 +39,9 @@ matugen image "$wall" -m dark --prefer saturation
 
 # 3. Recolour the folder icons to match
 "$HOME/.config/scripts/recolor-icons.sh" "$(cat "$HOME/.cache/accent_color")"
+
+# Sync colors to global cache for SDDM access
+if [ -f "$HOME/.cache/wal/colors.json" ]; then
+    cp -f "$HOME/.cache/wal/colors.json" /var/cache/wal/colors.json 2>/dev/null || true
+    chmod 644 /var/cache/wal/colors.json 2>/dev/null || true
+fi

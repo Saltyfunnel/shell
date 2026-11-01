@@ -182,7 +182,7 @@ fi
 print_phase "Installing packages"
 
 CORE=(hyprland hyprpaper xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
-      polkit-kde-agent sddm qt6-5compat qt6-declarative qt6-svg qt5-wayland qt6-wayland
+      polkit-kde-agent qt6-5compat qt6-declarative qt6-svg qt5-wayland qt6-wayland
       mako)
 AUDIO=(pipewire pipewire-pulse pipewire-alsa wireplumber playerctl pavucontrol)
 TERMINAL=(kitty fish starship fastfetch btop)
@@ -340,18 +340,44 @@ as_user dbus-run-session -- gsettings set org.gnome.desktop.interface icon-theme
     || print_warn "Could not set icon theme now (hyprland.lua sets it at login)"
 
 ################################################################################
-# 9. SERVICES
+# 9. SERVICES & AUTO-LOGIN
 ################################################################################
 
-print_phase "Services"
+print_phase "Services & auto-login"
 
-for svc in sddm bluetooth NetworkManager; do
+# Enable background services
+for svc in bluetooth NetworkManager; do
     if systemctl enable "${svc}.service" > "$LOG_DIR/enable-${svc}.log" 2>&1; then
         print_ok "${svc} enabled"
     else
         print_warn "Could not enable ${svc}  →  $LOG_DIR/enable-${svc}.log"
     fi
 done
+
+# Ensure SDDM is disabled/removed if previously present
+systemctl disable sddm.service >/dev/null 2>&1 || true
+
+# Configure tty1 auto-login for $USER_NAME and auto-start Hyprland
+GETTY_OVERRIDE_DIR="/etc/systemd/system/getty@tty1.service.d"
+mkdir -p "$GETTY_OVERRIDE_DIR"
+
+cat > "$GETTY_OVERRIDE_DIR/override.conf" << EOF
+[Service]
+ExecStart=
+ExecStart=-/usr/bin/agetty --autologin $USER_NAME --noclear %I \$TERM
+EOF
+
+# Add a profile check to launch Hyprland automatically on login to tty1
+PROFILE_FILE="$USER_HOME/.bash_profile"
+cat >> "$PROFILE_FILE" << 'EOF'
+
+# Auto-start Hyprland on tty1 login
+if [[ -z "${DISPLAY:-}" && "${XDG_VTNR:-}" == "1" ]]; then
+    exec Hyprland
+fi
+EOF
+
+print_ok "Configured automatic login to Hyprland on tty1"
 
 ################################################################################
 # 10. WRAP UP

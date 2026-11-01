@@ -1,37 +1,63 @@
 {
-  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
-  "logo": {
-    "type": "auto",
-    "color": {
-      "1": "{{colors.primary.default.hex}}",
-      "2": "{{colors.secondary.default.hex}}"
-    }
-  },
-  "display": {
-    "separator": " ──> ",
-    "color": {
-      "keys": "{{colors.primary.default.hex}}",
-      "title": "{{colors.tertiary.default.hex}}"
+    "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+    "logo": {
+        "source": "arch_small",
+        "height": 11,
+        "padding": {
+            "top": 3,
+            "left": 2
+        },
+        "color": {
+            "1": "{{colors.primary.default.hex}}",
+            "2": "{{colors.secondary.default.hex}}"
+        }
     },
-    "key": {
-      "width": 12
-    }
-  },
-  "modules": [
-    "title",
-    "separator",
-    "os",
-    "kernel",
-    "uptime",
-    "packages",
-    "shell",
-    "wm",
-    "terminal",
-    "cpu",
-    "gpu",
-    "memory",
-    "disk",
-    "break",
-    "colors"
-  ]
+    "display": {
+        "separator": "  "
+    },
+    "modules": [
+        "break",
+        {
+            "type": "custom",
+            "format": "\u001b[90m  \u001b[31m  \u001b[32m  \u001b[33m  \u001b[34m  \u001b[35m  \u001b[36m  \u001b[37m "
+        },
+        "break",
+        {
+            "type": "os",
+            "key": " ",
+            "keyColor": "{{colors.primary.default.hex}}"
+        },
+        {
+            "type": "kernel",
+            "key": " ",
+            "keyColor": "{{colors.secondary.default.hex}}"
+        },
+        {
+            "type": "packages",
+            "format": "{} (pacman)",
+            "key": " ",
+            "keyColor": "{{colors.tertiary.default.hex}}"
+        },
+        {
+            "type": "shell",
+            "key": " ",
+            "keyColor": "{{colors.primary.default.hex}}"
+        },
+        {
+            "type": "terminal",
+            "key": " ",
+            "keyColor": "{{colors.secondary.default.hex}}"
+        },
+        {
+            "type": "wm",
+            "key": " ",
+            "keyColor": "{{colors.tertiary.default.hex}}"
+        },
+        "break",
+        {
+            "type": "custom",
+            "format": "\u001b[90m  \u001b[31m  \u001b[32m  \u001b[33m  \u001b[34m  \u001b[35m  \u001b[36m  \u001b[37m "
+        },
+        "break"
+    ]
 }

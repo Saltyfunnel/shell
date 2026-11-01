@@ -11,6 +11,7 @@ Item {
   property string popupName: "volume"   // this module's name
   property string openPopup: ""         // set by shell.qml
   signal toggle(string name)            // tells shell.qml to open/close us
+  property alias popup: card
 
   property var sink: Pipewire.defaultAudioSink
   property real vol: sink?.audio?.volume ?? 0
@@ -42,6 +43,7 @@ Item {
 
   // ---------- expanded: the card ----------
   PopupWindow {
+    id: card
     anchor.item: root
     anchor.edges: Edges.Bottom | Edges.Right
     anchor.gravity: Edges.Bottom | Edges.Left

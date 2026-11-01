@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import Quickshell.Io
 import QtQuick
 
 ShellRoot {
@@ -11,6 +12,19 @@ ShellRoot {
 
   function toggle(name) {
     root.openPopup = root.openPopup === name ? "" : name
+  }
+
+  // The app launcher: one overlay for the whole shell, opened from a keybind with
+  //   qs ipc call launcher toggle
+  Launcher {
+    id: launcher
+    openPopup: root.openPopup
+    onToggle: name => root.toggle(name)
+  }
+
+  IpcHandler {
+    target: "launcher"
+    function toggle(): void { root.toggle("launcher") }
   }
 
   // Multi-monitor support across all active screens
@@ -79,7 +93,7 @@ ShellRoot {
         }
       }
 
-      // ---------- RIGHT ISLAND: Hardware, Media, Volume, Power ----------
+      // ---------- RIGHT ISLAND: Hardware, Network, Bluetooth, Media, Volume, Power ----------
       Rectangle {
         anchors.right: parent.right
         anchors.rightMargin: 12
@@ -97,10 +111,28 @@ ShellRoot {
           spacing: 14
 
           Hardware {
+            id: hardware
+            openPopup: root.openPopup
+            onToggle: name => root.toggle(name)
+            anchors.verticalCenter: parent.verticalCenter
+          }
+
+          Network {
+            id: network
+            openPopup: root.openPopup
+            onToggle: name => root.toggle(name)
+            anchors.verticalCenter: parent.verticalCenter
+          }
+
+          BluetoothModule {
+            id: bluetooth
+            openPopup: root.openPopup
+            onToggle: name => root.toggle(name)
             anchors.verticalCenter: parent.verticalCenter
           }
 
           Media {
+            id: media
             openPopup: root.openPopup
             onToggle: name => root.toggle(name)
             anchors.verticalCenter: parent.verticalCenter
@@ -114,10 +146,14 @@ ShellRoot {
           }
 
           ScreenCaptureModule {
+            id: screenCapture
+            openPopup: root.openPopup
+            onToggle: name => root.toggle(name)
             anchors.verticalCenter: parent.verticalCenter
           }
 
           Volume {
+            id: volume
             openPopup: root.openPopup
             onToggle: name => root.toggle(name)
             anchors.verticalCenter: parent.verticalCenter
@@ -135,7 +171,7 @@ ShellRoot {
       // Native Hyprland focus grab including bar and popup windows
       HyprlandFocusGrab {
         active: root.openPopup !== ""
-        windows: [ barWindow, wallpaperPicker.popup, powerModule.popup ]
+        windows: [ barWindow, wallpaperPicker.popup, powerModule.popup, screenCapture.popup, media.popup, volume.popup, hardware.popup, network.popup, bluetooth.popup, launcher.popup ]
         onCleared: root.openPopup = ""
       }
     }

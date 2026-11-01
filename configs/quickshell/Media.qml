@@ -12,6 +12,7 @@ Item {
   property string popupName: "media"
   property string openPopup: ""
   signal toggle(string name)
+  property alias popup: card
 
   // Prefer a player that is playing right now, otherwise the first one found
   property var player: {
@@ -62,6 +63,7 @@ Item {
 
   // ---------- expanded: the card ----------
   PopupWindow {
+    id: card
     anchor.item: root
     anchor.edges: Edges.Bottom | Edges.Right
     anchor.gravity: Edges.Bottom | Edges.Left

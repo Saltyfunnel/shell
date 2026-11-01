@@ -1,5 +1,7 @@
-// WallpaperPicker.qml — bar icon + a searchable thumbnail grid of ~/Pictures/Wallpapers.
-// Clicking a wallpaper hands its path to setwall.sh, which sets it and recolours everything.
+// WallpaperPicker.qml — bar icon + a carousel wallpaper picker.
+//   A big preview of the selected wallpaper, and a strip of thumbnails with the selected one enlarged.
+//   Left / Right (or the mouse wheel) move along the strip, Enter or a click on the selected one applies it.
+//   Type to search. Esc closes. Applying hands the path to setwall.sh, which recolours everything.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -18,8 +20,29 @@ Item {
   property string wallpaperDir: homeDir + "/Pictures/Wallpapers"
   property string searchQuery: ""
 
+  // every wallpaper found: [{ path, name }]
+  property var all: []
+  // the ones matching the search
+  property var results: {
+    const q = root.searchQuery
+    if (q === "") return root.all
+    return root.all.filter(w => w.name.toLowerCase().includes(q))
+  }
+  property var current: strip.currentIndex >= 0 && strip.currentIndex < results.length ? results[strip.currentIndex] : null
+
   implicitWidth: 32
   implicitHeight: 24
+
+  function apply(w) {
+    if (!w) return
+    Quickshell.execDetached([
+      "sh", "-c",
+      "export PATH=\"$PATH:" + root.homeDir + "/.cargo/bin\"; " +
+      "export HYPRLAND_INSTANCE_SIGNATURE=\"" + Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") + "\"; " +
+      "\"" + root.homeDir + "/.config/scripts/setwall.sh\" \"" + w.path + "\""
+    ])
+    root.toggle(root.popupName)
+  }
 
   // ---------- bar icon ----------
   Text {
@@ -37,20 +60,16 @@ Item {
     onClicked: root.toggle(root.popupName)
   }
 
-  // ---------- wallpaper list (scanned whenever the card is open) ----------
-  ListModel { id: wallpaperModel }
-
+  // ---------- scanning the wallpaper folder whenever the card is open ----------
   Process {
     id: loadWallpapers
-    command: ["sh", "-c", "find " + root.wallpaperDir + " -maxdepth 1 -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.webp' -o -name '*.jpeg' \\) | sort"]
+    command: ["sh", "-c", "find " + root.wallpaperDir + " -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.jpeg' \\) | sort"]
     running: root.isVisible
-    onRunningChanged: if (running) wallpaperModel.clear()
+    onRunningChanged: if (running) root.all = []
     stdout: SplitParser {
       onRead: data => {
-        var path = data.trim()
-        if (path !== "") {
-          wallpaperModel.append({ "filePath": path, "fileName": path.split("/").pop() })
-        }
+        const path = data.trim()
+        if (path !== "") root.all = root.all.concat([{ path: path, name: path.split("/").pop() }])
       }
     }
   }
@@ -59,15 +78,18 @@ Item {
   OverlayCard {
     id: card
     shown: root.isVisible
-    cardWidth: 980
+    cardWidth: 1000
     cardHeight: 640
+    cardRadius: 22
     onDismissed: root.toggle(root.popupName)
 
     onVisibleChanged: {
       if (!visible) {
-        wallpaperModel.clear()
+        root.all = []
         root.searchQuery = ""
+        searchField.text = ""
       } else {
+        strip.currentIndex = 0
         searchField.forceActiveFocus()
       }
     }
@@ -75,18 +97,17 @@ Item {
     Column {
       anchors.fill: parent
       anchors.margins: 24
-      spacing: 16
+      spacing: 14
 
-      // Header: title + search box
+      // ----- header: title + search -----
       Row {
         width: parent.width
-        height: 40
+        height: 38
         spacing: 16
 
         Row {
           spacing: 10
           anchors.verticalCenter: parent.verticalCenter
-
           Text {
             text: "󰸉"
             color: Colors.accent
@@ -105,9 +126,9 @@ Item {
         }
 
         Rectangle {
-          width: 320
-          height: 38
-          radius: 10
+          width: 280
+          height: 34
+          radius: 17
           color: Colors.card
           border.color: searchField.activeFocus ? Colors.accent : "transparent"
           border.width: 1
@@ -115,9 +136,9 @@ Item {
 
           Row {
             anchors.fill: parent
-            anchors.leftMargin: 12
-            anchors.rightMargin: 12
-            spacing: 10
+            anchors.leftMargin: 14
+            anchors.rightMargin: 14
+            spacing: 8
 
             Text {
               text: "󰍉"
@@ -129,20 +150,27 @@ Item {
 
             TextInput {
               id: searchField
-              width: parent.width - 30
+              width: parent.width - 28
               height: parent.height
               color: Colors.text
               font.family: "JetBrainsMono Nerd Font"
               font.pixelSize: 13
-              anchors.verticalCenter: parent.verticalCenter
               verticalAlignment: TextInput.AlignVCenter
               clip: true
 
-              onTextChanged: root.searchQuery = text.trim().toLowerCase()
+              onTextChanged: {
+                root.searchQuery = text.trim().toLowerCase()
+                strip.currentIndex = 0
+              }
               Keys.onEscapePressed: root.toggle(root.popupName)
+              Keys.onReturnPressed: root.apply(root.current)
+              Keys.onEnterPressed: root.apply(root.current)
+              // Left / Right move along the strip, unless you are editing a search
+              Keys.onLeftPressed: event => { if (text === "") strip.decrementCurrentIndex(); else event.accepted = false }
+              Keys.onRightPressed: event => { if (text === "") strip.incrementCurrentIndex(); else event.accepted = false }
 
               Text {
-                text: "Search wallpapers..."
+                text: "Search..."
                 color: Colors.text
                 opacity: 0.4
                 font.family: "JetBrainsMono Nerd Font"
@@ -155,82 +183,104 @@ Item {
         }
       }
 
-      MenuDivider {}
-
-      // Thumbnail grid
-      GridView {
-        id: gridView
+      // ----- big preview of the selected wallpaper -----
+      Item {
         width: parent.width
-        height: 500
-        cellWidth: 220
-        cellHeight: 165
-        model: wallpaperModel
+        height: 300
+
+        Rectangle {
+          anchors.fill: parent
+          radius: 16
+          color: Colors.card
+        }
+        RoundedImage {
+          anchors.fill: parent
+          radius: 16
+          source: root.current ? "file://" + root.current.path : ""
+        }
+        Text {
+          anchors.centerIn: parent
+          visible: root.results.length === 0
+          text: root.all.length === 0 ? "No wallpapers found in ~/Pictures/Wallpapers" : "No matches"
+          color: Colors.subtext
+          font.pixelSize: 14
+        }
+      }
+
+      // ----- the strip -----
+      ListView {
+        id: strip
+        width: parent.width
+        height: 168
+        orientation: ListView.Horizontal
+        model: root.results
         clip: true
-        focus: true
+        currentIndex: 0
+        highlightRangeMode: ListView.StrictlyEnforceRange     // keep the selected one centred
+        preferredHighlightBegin: width / 2 - 120
+        preferredHighlightEnd: width / 2 + 120
+        highlightMoveDuration: 220
+
+        WheelHandler {
+          onWheel: event => event.angleDelta.y > 0 ? strip.decrementCurrentIndex() : strip.incrementCurrentIndex()
+        }
 
         delegate: Item {
-          width: gridView.cellWidth
-          height: gridView.cellHeight
+          required property var modelData
+          required property int index
+          readonly property bool selected: ListView.isCurrentItem
 
-          readonly property bool matchesSearch: root.searchQuery === "" || fileName.toLowerCase().includes(root.searchQuery)
-          visible: matchesSearch
+          width: 240
+          height: strip.height
+          z: selected ? 2 : 1
+          scale: selected ? 1.15 : 0.85
+          opacity: selected ? 1 : 0.65
+          Behavior on scale   { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+          Behavior on opacity { NumberAnimation { duration: 200 } }
 
-          Item {
-            anchors.fill: parent
-            anchors.margins: 6
-            visible: parent.visible
+          Column {
+            anchors.centerIn: parent
+            spacing: 8
 
-            Rectangle {
-              anchors.fill: parent
-              radius: 12
-              color: Colors.card
-              border.color: mouseArea.containsMouse ? Colors.accent : "transparent"
-              border.width: 1.5
-              clip: true
+            Item {
+              width: 200
+              height: 112
 
-              Image {
-                anchors.fill: parent
-                source: "file://" + filePath
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                smooth: true
-              }
-
-              // filename banner along the bottom
               Rectangle {
-                anchors.bottom: parent.bottom
-                width: parent.width
-                height: 28
-                color: "#aa000000"
-
-                Text {
-                  anchors.centerIn: parent
-                  width: parent.width - 12
-                  text: fileName
-                  color: Colors.text
-                  font.family: "JetBrainsMono Nerd Font"
-                  font.pixelSize: 11
-                  elide: Text.ElideMiddle
-                  horizontalAlignment: Text.AlignHCenter
-                }
+                anchors.fill: parent
+                radius: 12
+                color: Colors.card
+              }
+              RoundedImage {
+                anchors.fill: parent
+                radius: 12
+                decodeWidth: 400
+                source: "file://" + modelData.path
+              }
+              Rectangle {
+                anchors.fill: parent
+                radius: 12
+                color: "transparent"
+                border.width: selected ? 2 : 0
+                border.color: Colors.accent
               }
             }
 
-            MouseArea {
-              id: mouseArea
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: {
-                Quickshell.execDetached([
-                  "sh", "-c",
-                  "export PATH=\"$PATH:" + root.homeDir + "/.cargo/bin\"; " +
-                  "export HYPRLAND_INSTANCE_SIGNATURE=\"" + Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") + "\"; " +
-                  "\"" + root.homeDir + "/.config/scripts/setwall.sh\" \"" + filePath + "\""
-                ])
-                root.toggle(root.popupName)
-              }
+            Text {
+              width: 200
+              text: modelData.name
+              color: selected ? Colors.text : Colors.subtext
+              font.family: "JetBrainsMono Nerd Font"
+              font.pixelSize: 11
+              elide: Text.ElideMiddle
+              horizontalAlignment: Text.AlignHCenter
             }
+          }
+
+          MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: if (selected) root.apply(modelData); else strip.currentIndex = index
           }
         }
       }
@@ -238,11 +288,10 @@ Item {
       Text {
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
-        text: "Click to apply wallpaper    ·    Type to search    ·    Esc to close"
-        color: Colors.text
-        opacity: 0.6
+        text: "← →  browse    ·    Enter / click selected  apply    ·    type to search    ·    Esc  close"
+        color: Colors.subtext
         font.family: "JetBrainsMono Nerd Font"
-        font.pixelSize: 12
+        font.pixelSize: 11
       }
     }
   }

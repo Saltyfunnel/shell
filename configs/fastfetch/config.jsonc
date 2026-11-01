@@ -1,33 +1,63 @@
 {
-  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
-  "logo": {
-    "type": "auto",
-    "printRemaining": true
-  },
-  "display": {
-    "separator": " ──> ",
-    "key": {
-      "width": 12
-    }
-  },
-  "modules": [
-    "title",
-    "separator",
-    "os",
-    "kernel",
-    "uptime",
-    "packages",
-    "shell",
-    "display",
-    "de",
-    "wm",
-    "terminal",
-    "cpu",
-    "gpu",
-    "memory",
-    "disk",
-    "battery",
-    "break",
-    "colors"
-  ]
+    "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+    "logo": {
+        "source": "arch_small",
+        "height": 11,
+        "padding": {
+            "top": 3,
+            "left": 2
+        },
+        "color": {
+            "1": "#ffb2b9",
+            "2": "#e5bdbf"
+        }
+    },
+    "display": {
+        "separator": "  "
+    },
+    "modules": [
+        "break",
+        {
+            "type": "custom",
+            "format": "\u001b[90m  \u001b[31m  \u001b[32m  \u001b[33m  \u001b[34m  \u001b[35m  \u001b[36m  \u001b[37m "
+        },
+        "break",
+        {
+            "type": "os",
+            "key": " ",
+            "keyColor": "#ffb2b9"
+        },
+        {
+            "type": "kernel",
+            "key": " ",
+            "keyColor": "#e5bdbf"
+        },
+        {
+            "type": "packages",
+            "format": "{} (pacman)",
+            "key": " ",
+            "keyColor": "#e8c08e"
+        },
+        {
+            "type": "shell",
+            "key": " ",
+            "keyColor": "#ffb2b9"
+        },
+        {
+            "type": "terminal",
+            "key": " ",
+            "keyColor": "#e5bdbf"
+        },
+        {
+            "type": "wm",
+            "key": " ",
+            "keyColor": "#e8c08e"
+        },
+        "break",
+        {
+            "type": "custom",
+            "format": "\u001b[90m  \u001b[31m  \u001b[32m  \u001b[33m  \u001b[34m  \u001b[35m  \u001b[36m  \u001b[37m "
+        },
+        "break"
+    ]
 }

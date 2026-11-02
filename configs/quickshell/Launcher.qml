@@ -1,4 +1,4 @@
-// Launcher.qml — Flipped 2-Pane Spotlight Layout with Wallpaper Preview, Click-to-Hide, Reset & MRU Sorting
+// Launcher.qml — Flipped 2-Pane Spotlight Layout with Wallpaper Preview, Click-to-Hide, Persistent Hidden Apps & MRU Sorting
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -17,6 +17,44 @@ Scope {
   // Dynamic lists tracked during the session
   property var hiddenApps: []
   property var recentApps: [] // Most recently launched apps appear first
+
+  // Persistent storage path for hidden apps
+  property string hiddenConfigPath: Quickshell.env("HOME") + "/.cache/quickshell_hidden_apps.json"
+
+  // Load hidden apps from disk on startup
+  Component.onCompleted: {
+    hiddenLoadProc.running = true
+  }
+
+  Process {
+    id: hiddenLoadProc
+    command: ["sh", "-c", "cat " + root.hiddenConfigPath + " 2>/dev/null || echo '[]'"]
+    running: false
+    stdout: SplitParser {
+      onRead: data => {
+        try {
+          const parsed = JSON.parse(data.trim())
+          if (Array.isArray(parsed)) {
+            root.hiddenApps = parsed
+          }
+        } catch (e) {
+          root.hiddenApps = []
+        }
+      }
+    }
+  }
+
+  // Save hidden apps to disk whenever the list changes
+  function saveHiddenApps() {
+    const jsonStr = JSON.stringify(root.hiddenApps)
+    hiddenSaveProc.command = ["sh", "-c", "echo '" + jsonStr + "' > " + root.hiddenConfigPath]
+    hiddenSaveProc.running = true
+  }
+
+  Process {
+    id: hiddenSaveProc
+    running: false
+  }
 
   // Automatically fetch the active wallpaper path from common config/cache locations
   Process {
@@ -102,12 +140,14 @@ Scope {
 
     if (!root.hiddenApps.includes(appName)) {
       root.hiddenApps = [...root.hiddenApps, appName]
+      saveHiddenApps()
       list.currentIndex = Math.max(0, list.currentIndex - 1)
     }
   }
 
   function resetHiddenApps() {
     root.hiddenApps = []
+    saveHiddenApps()
     list.currentIndex = 0
   }
 

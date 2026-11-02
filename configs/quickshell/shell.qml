@@ -87,7 +87,10 @@ ShellRoot {
           id: centerRow
           anchors.centerIn: parent
 
-          Clock {
+          Dashboard {
+            id: dashboard
+            openPopup: root.openPopup
+            onToggle: name => root.toggle(name)
             anchors.verticalCenter: parent.verticalCenter
           }
         }
@@ -171,7 +174,7 @@ ShellRoot {
       // Native Hyprland focus grab including bar and popup windows
       HyprlandFocusGrab {
         active: root.openPopup !== ""
-        windows: [ barWindow, wallpaperPicker.popup, powerModule.popup, screenCapture.popup, media.popup, volume.popup, hardware.popup, network.popup, bluetooth.popup, launcher.popup ]
+        windows: [ barWindow, wallpaperPicker.popup, powerModule.popup, screenCapture.popup, media.popup, volume.popup, hardware.popup, network.popup, bluetooth.popup, launcher.popup, dashboard.popup ]
         onCleared: root.openPopup = ""
       }
     }

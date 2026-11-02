@@ -94,6 +94,19 @@ Item {
       }
     }
 
+    // Enable mouse wheel scrolling anywhere across the entire wallpaper card
+    WheelHandler {
+      onWheel: event => {
+        const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
+        if (delta > 0) {
+          strip.decrementCurrentIndex()
+        } else if (delta < 0) {
+          strip.incrementCurrentIndex()
+        }
+        event.accepted = true
+      }
+    }
+
     Column {
       anchors.fill: parent
       anchors.margins: 24
@@ -221,10 +234,6 @@ Item {
         preferredHighlightEnd: width / 2 + 120
         highlightMoveDuration: 220
 
-        WheelHandler {
-          onWheel: event => event.angleDelta.y > 0 ? strip.decrementCurrentIndex() : strip.incrementCurrentIndex()
-        }
-
         delegate: Item {
           required property var modelData
           required property int index
@@ -288,7 +297,7 @@ Item {
       Text {
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
-        text: "← →  browse    ·    Enter / click selected  apply    ·    type to search    ·    Esc  close"
+        text: "← → / scroll  browse    ·    Enter / click selected  apply    ·    type to search    ·    Esc  close"
         color: Colors.subtext
         font.family: "JetBrainsMono Nerd Font"
         font.pixelSize: 11

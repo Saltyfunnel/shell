@@ -163,11 +163,7 @@ hl.bind(mod .. " + V", hl.dsp.window.float({ action = "toggle" }))
 
 -- apps
 hl.bind(mod .. " + F", hl.dsp.exec_cmd(fm))
-hl.bind(mod .. " + A", hl.dsp.exec_cmd("python3 ~/.config/scripts/chat.py"))
--- Super+W: new random wallpaper + matching colours. (Your old wall.py picker still
--- calls pywal, so it is parked until it is ported to setwall.sh.)
-hl.bind(mod .. " + W", hl.dsp.exec_cmd("~/.config/scripts/setwall.sh --random"))
--- hl.bind(mod .. " + W", hl.dsp.exec_cmd("python3 ~/.config/scripts/wall.py"))
+hl.bind(mod .. " + W", hl.dsp.exec_cmd("qs ipc call WallpaperPicker toggle"))
 hl.bind(mod .. " + D", hl.dsp.exec_cmd("qs ipc call launcher toggle"))
 hl.bind(mod .. " + C", hl.dsp.exec_cmd(ed))
 hl.bind(mod .. " + B", hl.dsp.exec_cmd(br))

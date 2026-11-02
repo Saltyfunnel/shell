@@ -1,4 +1,4 @@
-// Launcher.qml — Flipped 2-Pane Spotlight Layout with Actual Mini Wallpaper Preview on Left
+// Launcher.qml — Flipped 2-Pane Spotlight Layout with Wallpaper Preview, Click-to-Hide, Reset & MRU Sorting
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -13,6 +13,10 @@ Scope {
 
   property string query: ""
   property string wallpaperPath: ""
+
+  // Dynamic lists tracked during the session
+  property var hiddenApps: []
+  property var recentApps: [] // Most recently launched apps appear first
 
   // Automatically fetch the active wallpaper path from common config/cache locations
   Process {
@@ -29,18 +33,46 @@ Scope {
     }
   }
 
+  // Installed apps that match search, filtering hidden apps and sorting MRU first
   property var results: {
     const q = root.query.trim().toLowerCase()
+    const hidden = root.hiddenApps
+    const recents = root.recentApps
     const list = DesktopEntries.applications.values
     const out = []
+
     for (let i = 0; i < list.length; i++) {
       const e = list[i]
       if (e.noDisplay) continue
-      const name = (e.name ?? "").toLowerCase()
+
+      const appName = (e.name ?? "").toLowerCase()
+      const fileName = (e.id ?? e.desktopFilePath ?? "").toLowerCase()
+
+      let isHidden = false
+      for (let h = 0; h < hidden.length; h++) {
+        const hid = hidden[h].toLowerCase()
+        if (fileName.includes(hid) || appName === hid) {
+          isHidden = true
+          break
+        }
+      }
+      if (isHidden) continue
+
       const generic = (e.genericName ?? "").toLowerCase()
-      if (q === "" || name.includes(q) || generic.includes(q)) out.push(e)
+      if (q === "" || appName.includes(q) || generic.includes(q)) out.push(e)
     }
+
     out.sort((a, b) => {
+      // If there's no active search query, sort by Most Recently Used (MRU) first
+      if (q === "") {
+        const aIndex = recents.indexOf(a.name)
+        const bIndex = recents.indexOf(b.name)
+        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex
+        if (aIndex !== -1) return -1
+        if (bIndex !== -1) return 1
+      }
+
+      // Standard prefix & alphabetical fallback sorting
       const as = q !== "" && a.name.toLowerCase().startsWith(q)
       const bs = q !== "" && b.name.toLowerCase().startsWith(q)
       if (as !== bs) return as ? -1 : 1
@@ -52,8 +84,31 @@ Scope {
   function launch(i) {
     if (i < 0 || i >= root.results.length) return
     const entry = root.results[i]
+    const appName = entry.name
+
+    // Update recent apps list (bubble launched app to the front)
+    let updatedRecents = [appName, ...root.recentApps.filter(name => name !== appName)]
+    if (updatedRecents.length > 20) updatedRecents.pop() // keep last 20
+    root.recentApps = updatedRecents
+
     root.toggle(root.popupName)
     entry.execute()
+  }
+
+  function hideCurrentApp() {
+    if (list.currentIndex < 0 || list.currentIndex >= root.results.length) return
+    const entry = root.results[list.currentIndex]
+    const appName = entry.name
+
+    if (!root.hiddenApps.includes(appName)) {
+      root.hiddenApps = [...root.hiddenApps, appName]
+      list.currentIndex = Math.max(0, list.currentIndex - 1)
+    }
+  }
+
+  function resetHiddenApps() {
+    root.hiddenApps = []
+    list.currentIndex = 0
   }
 
   OverlayCard {
@@ -108,23 +163,25 @@ Scope {
         // Active Application Metadata Display
         Item {
           anchors.fill: parent
+          anchors.margins: 16
 
           property var activeEntry: root.results.length > 0 && list.currentIndex >= 0 && list.currentIndex < root.results.length
             ? root.results[list.currentIndex]
             : null
 
+          // Centered Content (Icon, Title, Description)
           Column {
             anchors.centerIn: parent
-            width: parent.width - 32
-            spacing: 14
+            width: parent.width
+            spacing: 12
             visible: parent.activeEntry !== null
 
             Image {
-              width: 84
-              height: 84
+              width: 76
+              height: 76
               anchors.horizontalCenter: parent.horizontalCenter
               source: parent.parent.activeEntry ? Quickshell.iconPath(parent.parent.activeEntry.icon, "application-x-executable") : ""
-              sourceSize: Qt.size(84, 84)
+              sourceSize: Qt.size(76, 76)
               fillMode: Image.PreserveAspectFit
             }
 
@@ -152,36 +209,92 @@ Scope {
                 width: parent.width
                 wrapMode: Text.WordWrap
                 opacity: 0.85
-                maximumLineCount: 3
+                maximumLineCount: 2
                 elide: Text.ElideRight
               }
             }
+          }
 
-            Rectangle {
-              width: parent.width
-              height: 1
-              color: Qt.alpha(Colors.text, 0.2)
-            }
+          // Bottom Action Row (Pinned to bottom of the left panel)
+          Row {
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 8
 
-            // Command Executable Pill
+            // Hide App Button
             Rectangle {
-              height: 30
-              width: Math.min(parent.width, cmdText.implicitWidth + 24)
-              anchors.horizontalCenter: parent.horizontalCenter
+              height: 28
+              width: 100
               radius: 8
-              color: Qt.alpha(Colors.card, 0.85)
-              border.color: Qt.alpha(Colors.accent, 0.4)
+              color: hideMouse.containsMouse ? Qt.alpha(Colors.accent, 0.25) : Qt.alpha(Colors.card, 0.85)
+              border.color: Qt.alpha(Colors.accent, 0.5)
               border.width: 1
 
-              Text {
-                id: cmdText
-                text: "󰆍  " + (parent.parent.parent.parent.activeEntry ? (parent.parent.parent.parent.activeEntry.exec ?? "binary") : "")
-                color: Colors.accent
-                font.family: "JetBrainsMono Nerd Font"
-                font.pixelSize: 11
+              Behavior on color { ColorAnimation { duration: 100 } }
+
+              Row {
                 anchors.centerIn: parent
-                elide: Text.ElideRight
-                width: parent.width - 16
+                spacing: 5
+                Text {
+                  text: "󰜺"
+                  color: Colors.accent
+                  font.family: "JetBrainsMono Nerd Font"
+                  font.pixelSize: 12
+                }
+                Text {
+                  text: "Hide"
+                  color: Colors.accent
+                  font.family: "JetBrainsMono Nerd Font"
+                  font.pixelSize: 11
+                  font.weight: Font.Bold
+                }
+              }
+
+              MouseArea {
+                id: hideMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.hideCurrentApp()
+              }
+            }
+
+            // Reset Hidden Apps Button (Only visible if apps are currently hidden)
+            Rectangle {
+              height: 28
+              width: 100
+              radius: 8
+              visible: root.hiddenApps.length > 0
+              color: resetMouse.containsMouse ? Qt.alpha(Colors.text, 0.2) : Qt.alpha(Colors.card, 0.85)
+              border.color: Qt.alpha(Colors.text, 0.3)
+              border.width: 1
+
+              Behavior on color { ColorAnimation { duration: 100 } }
+
+              Row {
+                anchors.centerIn: parent
+                spacing: 5
+                Text {
+                  text: "󰃨"
+                  color: Colors.text
+                  font.family: "JetBrainsMono Nerd Font"
+                  font.pixelSize: 12
+                }
+                Text {
+                  text: "Reset (" + root.hiddenApps.length + ")"
+                  color: Colors.text
+                  font.family: "JetBrainsMono Nerd Font"
+                  font.pixelSize: 11
+                  font.weight: Font.Bold
+                }
+              }
+
+              MouseArea {
+                id: resetMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.resetHiddenApps()
               }
             }
           }

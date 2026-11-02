@@ -1,5 +1,7 @@
 // Dashboard.qml — the clock in the bar; click it for a tabbed dashboard popup.
-//   Tabs: Dashboard (clock, calendar, system info) / Media / Performance (the last two come next).
+//   Dashboard : system info on top; clock, calendar, mixer and media card below
+//   Media     : big now-playing view
+//   Performance : CPU / memory charts, disk, temperatures, battery
 import Quickshell
 import QtQuick
 
@@ -33,8 +35,8 @@ Item {
     anchor.edges: Edges.Bottom
     anchor.gravity: Edges.Bottom
     visible: root.openPopup === root.popupName
-    implicitWidth: 660
-    implicitHeight: 350
+    implicitWidth: 780
+    implicitHeight: 440
     color: "transparent"
 
     onVisibleChanged: if (visible) { root.tab = 0; calendar.reset() }
@@ -92,26 +94,29 @@ Item {
           width: parent.width
           height: parent.height - tabBar.height - Theme.gap
 
-          // Dashboard
-          Row {
+          // Dashboard: top row, then clock + calendar + mixer + media
+          Column {
             visible: root.tab === 0
             anchors.fill: parent
             spacing: Theme.gap
 
-            DashClock { width: 64; height: parent.height }
-            DashCalendar { id: calendar; width: 280; height: parent.height }
-            DashSysInfo { width: parent.width - 64 - 280 - 2 * Theme.gap; height: parent.height }
+            DashSysInfo { width: parent.width; height: 96 }
+
+            Row {
+              width: parent.width
+              height: parent.height - 96 - Theme.gap
+              spacing: Theme.gap
+
+              DashClock { width: 64; height: parent.height }
+              DashCalendar { id: calendar; width: 280; height: parent.height }
+              MixerPanel { width: 84; height: parent.height }
+              DashMedia { width: parent.width - 64 - 280 - 84 - 3 * Theme.gap; height: parent.height }
+            }
           }
 
-          // Media and Performance arrive in the next step
-          Text {
-            visible: root.tab !== 0
-            anchors.centerIn: parent
-            text: "Coming in the next step"
-            color: Colors.subtext
-            font.family: Theme.font
-            font.pixelSize: 14
-          }
+          MediaPanel { visible: root.tab === 1; anchors.fill: parent }
+
+          PerformancePanel { visible: root.tab === 2; anchors.fill: parent }
         }
       }
     }

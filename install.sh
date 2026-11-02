@@ -1,6 +1,7 @@
 #!/bin/bash
 ################################################################################
 # my-shell installer — Arch Linux + Hyprland + Quickshell + matugen theming
+# No login manager: tty1 logs you in automatically and fish starts Hyprland.
 # Run from the repo folder:   sudo bash install.sh
 ################################################################################
 
@@ -228,7 +229,7 @@ fi
 
 print_phase "Creating folders"
 
-for d in hypr kitty fish mako scripts quickshell matugen/templates gtk-3.0 gtk-4.0 Thunar fastfetch zed/themes; do
+for d in hypr kitty fish fish/conf.d mako scripts quickshell matugen/templates gtk-3.0 gtk-4.0 Thunar fastfetch zed/themes; do
     as_user mkdir -p "$CONFIG_DIR/$d"
 done
 as_user mkdir -p "$USER_HOME/Pictures/Wallpapers" "$USER_HOME/.local/share/icons" "$USER_HOME/.cache"
@@ -340,12 +341,11 @@ as_user dbus-run-session -- gsettings set org.gnome.desktop.interface icon-theme
     || print_warn "Could not set icon theme now (hyprland.lua sets it at login)"
 
 ################################################################################
-# 9. SERVICES & AUTO-LOGIN
+# 9. SERVICES & AUTO-LOGIN (no login manager)
 ################################################################################
 
 print_phase "Services & auto-login"
 
-# Enable background services
 for svc in bluetooth NetworkManager; do
     if systemctl enable "${svc}.service" > "$LOG_DIR/enable-${svc}.log" 2>&1; then
         print_ok "${svc} enabled"
@@ -354,30 +354,34 @@ for svc in bluetooth NetworkManager; do
     fi
 done
 
-# Ensure SDDM is disabled/removed if previously present
+# No login manager any more: make sure a leftover SDDM is not enabled
 systemctl disable sddm.service >/dev/null 2>&1 || true
 
-# Configure tty1 auto-login for $USER_NAME and auto-start Hyprland
+# Auto-login on tty1 ONLY. tty2 to tty6 (Ctrl+Alt+F2...) keep a normal password
+# login, which is your recovery console if Hyprland ever fails to start.
 GETTY_OVERRIDE_DIR="/etc/systemd/system/getty@tty1.service.d"
 mkdir -p "$GETTY_OVERRIDE_DIR"
-
 cat > "$GETTY_OVERRIDE_DIR/override.conf" << EOF
 [Service]
 ExecStart=
 ExecStart=-/usr/bin/agetty --autologin $USER_NAME --noclear %I \$TERM
 EOF
 
-# Add a profile check to launch Hyprland automatically on login to tty1
-PROFILE_FILE="$USER_HOME/.bash_profile"
-cat >> "$PROFILE_FILE" << 'EOF'
-
-# Auto-start Hyprland on tty1 login
-if [[ -z "${DISPLAY:-}" && "${XDG_VTNR:-}" == "1" ]]; then
-    exec Hyprland
-fi
+# fish is your login shell, so it (not ~/.bash_profile) starts Hyprland on tty1.
+# This is its own file in conf.d, so re-running the installer just rewrites it.
+cat > "$CONFIG_DIR/fish/conf.d/10-hyprland-autostart.fish" << 'EOF'
+# Start Hyprland when logging in on tty1 (written by install.sh)
+if status is-login
+    if test -z "$WAYLAND_DISPLAY"; and test "$XDG_VTNR" = 1
+        if type -q start-hyprland
+            exec start-hyprland
+        else
+            exec Hyprland
+        end
+    end
+end
 EOF
-
-print_ok "Configured automatic login to Hyprland on tty1"
+print_ok "Auto-login on tty1, and fish starts Hyprland"
 
 ################################################################################
 # 10. WRAP UP
@@ -398,7 +402,9 @@ print_ok "Ownership set"
 echo ""
 hr
 echo -e "\n    ${BLD}${BGRN}Install complete.${RST}\n"
+echo -e "    ${DIM}After a reboot you go straight into Hyprland, with no login screen.${RST}"
 echo -e "    ${DIM}Colours and the wallpaper are generated at first login.${RST}"
+echo -e "    ${DIM}Recovery console if something goes wrong: Ctrl+Alt+F2, then log in.${RST}"
 echo ""
 echo -e "    ${DIM}logs: ${LOG_DIR}${RST}"
 hr

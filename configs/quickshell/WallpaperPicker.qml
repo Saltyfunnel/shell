@@ -7,11 +7,19 @@ import Quickshell.Io
 import QtQuick
 
 Item {
-  id: root
+    id: root
 
-  property string popupName: "wallpaper"
-  property string openPopup: ""
-  signal toggle(string name)
+    property string popupName: "wallpaper"
+    property string openPopup: ""
+    signal toggle(string name)
+
+    // Add this IPC bridge:
+    IpcHandler {
+        target: "WallpaperPicker"
+        function toggle(): void {
+            root.toggle(root.popupName)
+        }
+    }
   property alias popup: card        // shell.qml's focus grab uses this
 
   property bool isVisible: root.openPopup === root.popupName

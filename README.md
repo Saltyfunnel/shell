@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🐚 my-shell
+# 🐚 shell
 
 **Arch Linux · Hyprland · Quickshell · Matugen**
 
@@ -42,6 +42,7 @@
 Run directly on a fresh or existing **Arch Linux** installation:
 
 ```bash
-git clone [https://github.com/Saltyfunnel/shell.git](https://github.com/Saltyfunnel/shell.git)
+git clone https://github.com/Saltyfunnel/shell
 cd shell
-sudo bash install.sh
+chmod +x install.sh
+sudo ./install.sh

@@ -2,6 +2,7 @@
 //   Dashboard : system info on top; clock, calendar, mixer and media card below
 //   Media     : big now-playing view
 //   Performance : CPU / memory charts, disk, temperatures, battery
+//   Weather   : current conditions and a 3-day forecast (town set in Config.qml)
 import Quickshell
 import QtQuick
 
@@ -14,7 +15,7 @@ Item {
   property alias popup: card        // shell.qml's focus grab uses this
 
   property int tab: 0
-  readonly property var tabNames: ["Dashboard", "Media", "Performance"]
+  readonly property var tabNames: ["Dashboard", "Media", "Performance", "Weather"]
 
   implicitWidth: barClock.implicitWidth
   implicitHeight: barClock.implicitHeight
@@ -100,7 +101,14 @@ Item {
             anchors.fill: parent
             spacing: Theme.gap
 
-            DashSysInfo { width: parent.width; height: 96 }
+            Row {
+              width: parent.width
+              height: 96
+              spacing: Theme.gap
+
+              DashWeather { width: 260; height: parent.height }
+              DashSysInfo { width: parent.width - 260 - Theme.gap; height: parent.height }
+            }
 
             Row {
               width: parent.width
@@ -117,6 +125,8 @@ Item {
           MediaPanel { visible: root.tab === 1; anchors.fill: parent }
 
           PerformancePanel { visible: root.tab === 2; anchors.fill: parent }
+
+          WeatherPanel { visible: root.tab === 3; anchors.fill: parent }
         }
       }
     }

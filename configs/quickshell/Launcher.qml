@@ -1,4 +1,3 @@
-// Launcher.qml — Flipped 2-Pane Spotlight Layout with Wallpaper Preview, Click-to-Hide, Persistent Hidden Apps & MRU Sorting
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -181,8 +180,8 @@ Scope {
         height: parent.height
         radius: 16
         clip: true
-        color: Qt.darker(Colors.card, 1.4)
-        border.color: Qt.alpha(Colors.text, 0.1)
+        color: Qt.alpha(Colors.card, 0.25)
+        border.color: Qt.alpha(Colors.text, 0.08)
         border.width: 1
 
         // Actual Mini Wallpaper Image Copied Inside
@@ -191,13 +190,13 @@ Scope {
           anchors.fill: parent
           source: root.wallpaperPath
           fillMode: Image.PreserveAspectCrop
-          opacity: 0.6
+          opacity: 0.65
         }
 
-        // Dark Overlay Tint to keep text legible over the wallpaper
+        // Much Lighter Dark Overlay Tint (reduced to 0.15 for high clarity)
         Rectangle {
           anchors.fill: parent
-          color: Qt.rgba(0, 0, 0, 0.55)
+          color: Qt.rgba(0, 0, 0, 0.15)
         }
 
         // Active Application Metadata Display
@@ -266,8 +265,8 @@ Scope {
               height: 28
               width: 100
               radius: 8
-              color: hideMouse.containsMouse ? Qt.alpha(Colors.accent, 0.25) : Qt.alpha(Colors.card, 0.85)
-              border.color: Qt.alpha(Colors.accent, 0.5)
+              color: hideMouse.containsMouse ? Qt.alpha(Colors.accent, 0.25) : Qt.alpha(Colors.card, 0.4)
+              border.color: Qt.alpha(Colors.accent, 0.4)
               border.width: 1
 
               Behavior on color { ColorAnimation { duration: 100 } }
@@ -305,7 +304,7 @@ Scope {
               width: 100
               radius: 8
               visible: root.hiddenApps.length > 0
-              color: resetMouse.containsMouse ? Qt.alpha(Colors.text, 0.2) : Qt.alpha(Colors.card, 0.85)
+              color: resetMouse.containsMouse ? Qt.alpha(Colors.text, 0.2) : Qt.alpha(Colors.card, 0.4)
               border.color: Qt.alpha(Colors.text, 0.3)
               border.width: 1
 
@@ -354,7 +353,7 @@ Scope {
           width: parent.width
           height: 48
           radius: 12
-          color: Qt.darker(Colors.card, 1.2)
+          color: Qt.alpha(Colors.card, 0.3)
           border.color: searchField.activeFocus ? Colors.accent : Qt.alpha(Colors.text, 0.1)
           border.width: searchField.activeFocus ? 2 : 1
 
@@ -425,7 +424,7 @@ Scope {
             width: list.width
             height: 46
             radius: 10
-            color: list.currentIndex === index ? Qt.alpha(Colors.accent, 0.18) : "transparent"
+            color: list.currentIndex === index ? Qt.alpha(Colors.accent, 0.22) : "transparent"
             border.color: list.currentIndex === index ? Qt.alpha(Colors.accent, 0.4) : "transparent"
             border.width: 1
 

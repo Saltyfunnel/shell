@@ -381,7 +381,9 @@ for candidate in "$SCRIPTS_SRC/install-sddm-theme.sh" "$SCRIPTS_SRC/sddmtheme.sh
                  "$REPO_ROOT/install-sddm-theme.sh"; do
     [[ -f "$candidate" ]] && { SDDM_SCRIPT="$candidate"; break; }
 done
-if [[ -n "$SDDM_SCRIPT" ]]; then
+if [[ ! -f "$REPO_ROOT/configs/sddm/Main.qml" ]]; then
+    print_warn "configs/sddm/Main.qml is missing from the repo, skipping the SDDM theme (default theme will be used)"
+elif [[ -n "$SDDM_SCRIPT" ]]; then
     run_command "env REPO_ROOT='$REPO_ROOT' bash '$SDDM_SCRIPT'" "Installing the SDDM theme"
 else
     print_warn "SDDM theme script not found in scripts/. SDDM will use its default theme."

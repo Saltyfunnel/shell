@@ -6,6 +6,8 @@
 //   Connectivity : network + Wi-Fi list, Bluetooth devices
 //   Capture   : screenshots and screen recording
 //
+// The tab row also shows a pill with the pending pacman update count (click to update).
+//
 // Other bar modules can open a specific tab with  dashboard.openTab(n)
 //   0 Dashboard, 1 Media, 2 Performance, 3 Weather, 4 Connectivity, 5 Capture
 import Quickshell
@@ -70,39 +72,83 @@ Item {
         anchors.margins: Theme.pad
         spacing: Theme.gap
 
-        // ----- tab bar -----
-        Row {
+        // ----- tab bar (tabs on the left, updates pill on the right) -----
+        Item {
           id: tabBar
-          spacing: 6
+          width: parent.width
+          height: 30
 
-          Repeater {
-            model: root.tabNames
+          Row {
+            spacing: 6
 
-            Rectangle {
-              required property string modelData
-              required property int index
-              readonly property bool active: root.tab === index
+            Repeater {
+              model: root.tabNames
 
-              width: tabText.implicitWidth + 28
-              height: 30
-              radius: 15
-              color: active ? Colors.accent : "transparent"
-              Behavior on color { ColorAnimation { duration: Theme.animFast } }
+              Rectangle {
+                required property string modelData
+                required property int index
+                readonly property bool active: root.tab === index
 
+                width: tabText.implicitWidth + 28
+                height: 30
+                radius: 15
+                color: active ? Colors.accent : "transparent"
+                Behavior on color { ColorAnimation { duration: Theme.animFast } }
+
+                Text {
+                  id: tabText
+                  anchors.centerIn: parent
+                  text: modelData
+                  color: active ? Colors.surface : Colors.subtext
+                  font.family: Theme.font
+                  font.pixelSize: 13
+                  font.bold: active
+                }
+                MouseArea {
+                  anchors.fill: parent
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.tab = index
+                }
+              }
+            }
+          }
+
+          // updates pill: only shown when something is pending; click to update
+          Rectangle {
+            visible: Updates.total > 0
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            height: 26
+            width: pillRow.implicitWidth + 20
+            radius: 13
+            color: "transparent"
+            border.width: 1
+            border.color: Colors.accent
+
+            Row {
+              id: pillRow
+              anchors.centerIn: parent
+              spacing: 6
               Text {
-                id: tabText
-                anchors.centerIn: parent
-                text: modelData
-                color: active ? Colors.surface : Colors.subtext
+                text: "󰚰"
+                color: Colors.accent
                 font.family: Theme.font
                 font.pixelSize: 13
-                font.bold: active
+                anchors.verticalCenter: parent.verticalCenter
               }
-              MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.tab = index
+              Text {
+                text: Updates.total + (Updates.total === 1 ? " update" : " updates")
+                color: Colors.text
+                font.family: Theme.font
+                font.pixelSize: 12
+                anchors.verticalCenter: parent.verticalCenter
               }
+            }
+
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: { root.toggle(root.popupName); Updates.upgrade() }
             }
           }
         }

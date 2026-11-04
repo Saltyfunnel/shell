@@ -8,15 +8,32 @@
 set -Eeuo pipefail
 
 ################################################################################
-# LOOK & FEEL (colours, progress bar, spinner)
+# LOOK & FEEL
 ################################################################################
 
+# A fresh install usually runs in the bare Linux console (TERM=linux): 16 colours,
+# and no braille or box-drawing glyphs. So pick a glyph set that always renders.
+if [[ "${TERM:-}" != "linux" && "${LC_ALL:-${LANG:-}}" == *[Uu][Tt][Ff]*8* ]]; then
+    G_OK="✓"; G_ERR="✗"; G_WARN="!"; G_DOT="·"
+    G_FULL="█"; G_EMPTY="░"; G_HR="─"
+    SPIN=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+else
+    G_OK="+"; G_ERR="x"; G_WARN="!"; G_DOT="-"
+    G_FULL="#"; G_EMPTY="-"; G_HR="-"
+    SPIN=('|' '/' '-' '\')
+fi
+
+# Plain 16-colour codes only, so they work everywhere
 RST="\e[0m"; BLD="\e[1m"; DIM="\e[2m"
 WHT="\e[37m"; BBLK="\e[90m"; BRED="\e[91m"; BGRN="\e[92m"
-BYLW="\e[93m"; BBLU="\e[94m"; BCYN="\e[96m"; BWHT="\e[97m"
+BYLW="\e[93m"; BMAG="\e[95m"; BCYN="\e[96m"; BWHT="\e[97m"
 
+IS_TTY=0; [[ -t 1 ]] && IS_TTY=1
 STEP=0
 TOTAL_STEPS=10
+IN_RUN=0
+WARNINGS=()
+START_TIME=$SECONDS
 LOG_DIR="/tmp/my-shell-install-logs"
 mkdir -p "$LOG_DIR"
 
@@ -28,55 +45,69 @@ repeat() {  # repeat <char> <count>
     printf '%s' "$out"
 }
 
-hr() { echo -e "${BBLK}$(repeat '─' "$(_cols)")${RST}"; }
+fmt_time() {  # fmt_time <seconds>
+    local s=$1
+    if (( s >= 60 )); then printf '%dm%02ds' $(( s / 60 )) $(( s % 60 )); else printf '%ds' "$s"; fi
+}
 
+hr() { echo -e "${BBLK}$(repeat "$G_HR" "$(( $(_cols) > 60 ? 60 : $(_cols) ))")${RST}"; }
+
+# Animated line with a live elapsed timer. The timer alone shows it hasn't hung,
+# even if a console font renders the spinner glyph badly.
 spinner() {
-    local pid=$1 msg="$2" i=0
-    local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-    tput civis 2>/dev/null || true
+    local pid=$1 msg="$2" start=$SECONDS i=0
+    (( IS_TTY )) || return 0
+    msg="${msg:0:$(( $(_cols) - 24 ))}"
+    printf '\e[?25l'
     while kill -0 "$pid" 2>/dev/null; do
-        printf "\r    ${BCYN}${frames[$i]}${RST}  ${DIM}${msg}${RST}  "
-        i=$(( (i + 1) % ${#frames[@]} ))
-        sleep 0.07
+        printf '\r\e[K    %b%s%b  %s  %b%s%b' "$BCYN" "${SPIN[$i]}" "$RST" "$msg" "$BBLK" "$(fmt_time $(( SECONDS - start )))" "$RST"
+        i=$(( (i + 1) % ${#SPIN[@]} ))
+        sleep 0.1
     done
-    tput cnorm 2>/dev/null || true
-    printf "\r"
+    printf '\r\e[K\e[?25h'
 }
 
 print_phase() {
     STEP=$((STEP + 1))
+    local width=24
     local pct=$(( STEP * 100 / TOTAL_STEPS )); [[ $pct -gt 100 ]] && pct=100
-    local done_blocks=$(( STEP * 20 / TOTAL_STEPS )); [[ $done_blocks -gt 20 ]] && done_blocks=20
-    local bar="${BCYN}$(repeat '▪' "$done_blocks")${RST}${BBLK}$(repeat '▫' $(( 20 - done_blocks )))${RST}"
+    local full=$(( STEP * width / TOTAL_STEPS )); [[ $full -gt $width ]] && full=$width
+    local bar="${BCYN}$(repeat "$G_FULL" "$full")${RST}${BBLK}$(repeat "$G_EMPTY" $(( width - full )))${RST}"
     echo ""
-    echo -e "  ${bar}  ${BLD}${BWHT}$1${RST}  ${BBLK}${pct}%${RST}"
-    echo ""
+    echo -e "  ${bar}  ${BBLK}$(printf '%3d%%' "$pct")${RST}  ${BLD}${BWHT}$1${RST}"
 }
 
-print_ok()   { echo -e "    ${BGRN}✓${RST}  $1"; }
-print_warn() { echo -e "    ${BYLW}!${RST}  $1"; }
-print_info() { echo -e "    ${BBLK}↳${RST}  ${DIM}$1${RST}"; }
-print_err()  { echo -e "\n    ${BRED}✗  ${BLD}$1${RST}\n" >&2; exit 1; }
+print_ok()   { # print_ok <msg> [seconds]
+    local t=""
+    [[ -n "${2:-}" && "${2:-0}" -ge 2 ]] && t="  ${BBLK}$(fmt_time "$2")${RST}"
+    echo -e "    ${BGRN}${G_OK}${RST}  $1${t}"
+}
+print_warn() { WARNINGS+=("$1"); echo -e "    ${BYLW}${G_WARN}${RST}  $1"; }
+print_info() { echo -e "    ${BBLK}${G_DOT}  $1${RST}"; }
+print_err()  { echo -e "\n    ${BRED}${G_ERR}  ${BLD}$1${RST}\n" >&2; exit 1; }
 
 # Run a command as your normal user (not root), with your HOME set.
 as_user() { sudo -u "$USER_NAME" -H "$@"; }
 
-# Run a command with a spinner. If it fails, show the end of its log and stop.
+# Run a command with a live spinner. One line in, one line out. If it fails, show
+# the end of its log and stop.
 run_command() {
-    local cmd="$1" desc="$2"
+    local cmd="$1" desc="$2" start=$SECONDS
     local slug; slug=$(echo "$desc" | tr -c 'a-zA-Z0-9\n' '_' | cut -c1-60)
     local log="$LOG_DIR/${slug}.log"
 
-    print_info "$desc"
+    IN_RUN=1
     eval "$cmd" > "$log" 2>&1 &
     local pid=$!
     spinner "$pid" "$desc"
     if ! wait "$pid"; then
-        echo -e "\n    ${BRED}Last lines of log:${RST}" >&2
+        echo -e "    ${BRED}${G_ERR}${RST}  ${desc}" >&2
+        echo -e "\n    ${BRED}Last lines of the log:${RST}" >&2
         tail -n 15 "$log" | sed 's/^/      /' >&2
-        print_err "Failed: $desc  →  $log"
+        print_err "Failed: $desc  ->  $log"
     fi
-    print_ok "$desc"
+    IN_RUN=0
+    print_ok "$desc" "$(( SECONDS - start ))"
 }
 
 # Copy a folder or a file from the repo into ~/.config if it exists.
@@ -89,13 +120,13 @@ deploy() {  # deploy <repo path> <destination> <label>
         as_user mkdir -p "$(dirname "$dest")"
         run_command "as_user cp -f '$src' '$dest'" "$label"
     else
-        print_info "skipped $label (not found in repo)"
+        print_info "skipped $label (not in the repo)"
     fi
 }
 
-cleanup() { tput cnorm 2>/dev/null || true; echo ""; }
+cleanup() { printf '\e[?25h' 2>/dev/null || true; echo ""; }
 trap cleanup EXIT
-trap 'echo -e "\n    ${BRED}✗  Error on line $LINENO${RST}" >&2' ERR
+trap '(( IN_RUN )) || echo -e "\n    ${BRED}${G_ERR}  Error on line $LINENO${RST}" >&2' ERR
 
 ################################################################################
 # PRE-FLIGHT CHECKS
@@ -121,13 +152,15 @@ CARGO_PATH="/usr/local/bin:/usr/bin:/bin:$USER_HOME/.cargo/bin"
 
 clear
 echo ""
-echo -e "    ${BLD}${BCYN}my-shell${RST}${BLD}${BBLK} · hyprland · quickshell · matugen${RST}"
-echo ""
-echo -e "    ${BBLK}user${RST}    ${WHT}${USER_NAME}${RST}"
-echo -e "    ${BBLK}repo${RST}    ${WHT}${REPO_ROOT}${RST}"
-echo -e "    ${BBLK}logs${RST}    ${WHT}${LOG_DIR}${RST}"
+echo -e "    ${BLD}${BCYN}my-shell${RST}"
+echo -e "    ${BBLK}hyprland ${G_DOT} quickshell ${G_DOT} matugen${RST}"
 echo ""
 hr
+echo -e "    ${BBLK}user${RST}  ${WHT}${USER_NAME}${RST}"
+echo -e "    ${BBLK}repo${RST}  ${WHT}${REPO_ROOT}${RST}"
+echo -e "    ${BBLK}logs${RST}  ${WHT}${LOG_DIR}${RST}"
+hr
+echo ""
 
 curl -fsS --max-time 10 -o /dev/null https://archlinux.org || print_err "No network connection"
 print_ok "Network reachable"
@@ -413,17 +446,30 @@ print_ok "Ownership set"
 
 echo ""
 hr
-echo -e "\n    ${BLD}${BGRN}Install complete.${RST}\n"
-echo -e "    ${DIM}After a reboot SDDM shows the login screen. Pick the Hyprland session.${RST}"
-echo -e "    ${DIM}Colours and the wallpaper are generated at first login.${RST}"
-echo -e "    ${DIM}Lock screen: hyprlock (bind it in your Hyprland config).${RST}"
-echo -e "    ${DIM}Recovery console if something goes wrong: Ctrl+Alt+F2, then log in.${RST}"
 echo ""
-echo -e "    ${DIM}logs: ${LOG_DIR}${RST}"
+echo -e "    ${BLD}${BGRN}${G_OK}  Install complete${RST}  ${BBLK}in $(fmt_time $(( SECONDS - START_TIME )))${RST}"
+echo ""
+echo -e "    ${BWHT}Next${RST}"
+echo -e "    ${BBLK}${G_DOT}${RST}  Reboot, then pick the ${BCYN}Hyprland${RST} session at the login screen"
+echo -e "    ${BBLK}${G_DOT}${RST}  Colours and wallpaper are generated at first login"
+echo -e "    ${BBLK}${G_DOT}${RST}  Lock screen is hyprlock (bind it in your Hyprland config)"
+echo -e "    ${BBLK}${G_DOT}${RST}  If something goes wrong: ${BCYN}Ctrl+Alt+F2${RST}, then log in"
+
+if (( ${#WARNINGS[@]} > 0 )); then
+    echo ""
+    echo -e "    ${BYLW}${G_WARN}  ${#WARNINGS[@]} thing(s) to look at${RST}"
+    for w in "${WARNINGS[@]}"; do
+        echo -e "      ${BBLK}${G_DOT}${RST} $w"
+    done
+fi
+
+echo ""
+echo -e "    ${BBLK}logs: ${LOG_DIR}${RST}"
+echo ""
 hr
 echo ""
 
-read -r -p "    $(echo -e "${BCYN}reboot now? [Y/n]:${RST} ")" REBOOT_CHOICE
+read -r -p "    $(echo -e "${BCYN}Reboot now? [Y/n]:${RST} ")" REBOOT_CHOICE
 REBOOT_CHOICE=${REBOOT_CHOICE:-Y}
 if [[ "$REBOOT_CHOICE" =~ ^[Yy]$ ]]; then
     reboot

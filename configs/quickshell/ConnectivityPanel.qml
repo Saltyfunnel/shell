@@ -66,11 +66,21 @@ DashPanel {
           font.family: Theme.font
           font.pixelSize: 13
         }
-        Repeater {
-          model: Connectivity.hasWifi ? Connectivity.accessPoints.slice(0, 5) : []
 
-          MenuRow {
+        // scrollable list: fills the space left under the header
+        ListView {
+          id: wifiList
+          visible: Connectivity.hasWifi
+          width: parent.width
+          height: Math.max(0, parent.height - y)
+          clip: true
+          spacing: 4
+          boundsBehavior: Flickable.StopAtBounds
+          model: Connectivity.hasWifi ? Connectivity.accessPoints : []
+
+          delegate: MenuRow {
             required property var modelData
+            width: wifiList.width
             icon: "\udb81\udda9"
             iconColor: modelData.active ? Colors.accent : Colors.subtext
             label: modelData.ssid + (modelData.secure ? "  \udb80\udf3e" : "") + "   " + modelData.signal + "%"
@@ -167,11 +177,20 @@ DashPanel {
           font.pixelSize: 13
         }
 
-        Repeater {
+        // scrollable list of paired devices
+        ListView {
+          id: btList
+          visible: Connectivity.hasAdapter && Connectivity.powered
+          width: parent.width
+          height: Math.max(0, parent.height - y)
+          clip: true
+          spacing: 4
+          boundsBehavior: Flickable.StopAtBounds
           model: (Connectivity.hasAdapter && Connectivity.powered) ? Connectivity.devices : []
 
-          MenuRow {
+          delegate: MenuRow {
             required property var modelData
+            width: btList.width
             icon: modelData.connected ? "\udb80\udcb1" : "\udb80\udcaf"
             iconColor: modelData.connected ? Colors.accent : Colors.subtext
             label: modelData.name + (modelData.connected ? "   connected" : "")

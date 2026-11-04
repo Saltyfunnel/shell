@@ -41,3 +41,14 @@ output_path = "~/.config/zed/themes/material-dynamic.json"
 [templates.fastfetch]
 input_path  = "~/.config/matugen/templates/fastfetch.jsonc"
 output_path = "~/.config/fastfetch/config.jsonc"
+
+# Lock screen. hyprlock reads its config each time it starts, so no hook is needed.
+[templates.hyprlock]
+input_path  = "~/.config/matugen/templates/hyprlock.conf"
+output_path = "~/.config/hypr/hyprlock.conf"
+
+# SDDM login screen. Main.qml reads this pywal-style file.
+# /var/cache/wal is created and owned by you by install-sddm-theme.sh.
+[templates.sddm]
+input_path  = "~/.config/matugen/templates/sddm-colors.json"
+output_path = "/var/cache/wal/colors.json"

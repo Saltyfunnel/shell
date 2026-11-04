@@ -1,25 +1,27 @@
 // WallpaperPicker.qml — bar icon + a carousel wallpaper picker.
-//   A big preview of the selected wallpaper, and a strip of thumbnails with the selected one enlarged.
+//   A big preview of the selected wallpaper, and a coverflow strip of thumbnails.
 //   Left / Right (or the mouse wheel) move along the strip, Enter or a click on the selected one applies it.
-//   Type to search. Esc closes. Applying hands the path to setwall.sh, which recolours everything.
+//   Type to search. Tab picks a random one. Esc closes.
+//   Applying hands the path to setwall.sh, which recolours everything.
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import QtQuick.Effects
 
 Item {
-    id: root
+  id: root
 
-    property string popupName: "wallpaper"
-    property string openPopup: ""
-    signal toggle(string name)
+  property string popupName: "wallpaper"
+  property string openPopup: ""
+  signal toggle(string name)
 
-    // Add this IPC bridge:
-    IpcHandler {
-        target: "WallpaperPicker"
-        function toggle(): void {
-            root.toggle(root.popupName)
-        }
+  IpcHandler {
+    target: "WallpaperPicker"
+    function toggle(): void {
+      root.toggle(root.popupName)
     }
+  }
+
   property alias popup: card        // shell.qml's focus grab uses this
 
   property bool isVisible: root.openPopup === root.popupName
@@ -71,7 +73,7 @@ Item {
   // ---------- scanning the wallpaper folder whenever the card is open ----------
   Process {
     id: loadWallpapers
-    command: ["sh", "-c", "find " + root.wallpaperDir + " -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.jpeg' \\) | sort"]
+    command: ["sh", "-c", "find \"" + root.wallpaperDir + "\" -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.jpeg' \\) | sort"]
     running: root.isVisible
     onRunningChanged: if (running) root.all = []
     stdout: SplitParser {
@@ -102,15 +104,50 @@ Item {
       }
     }
 
-    // Enable mouse wheel scrolling anywhere across the entire wallpaper card
+    // ----- blurred wallpaper backdrop: the card takes on the colours of the selection -----
+    Image {
+      id: bgSrc
+      anchors.fill: parent
+      sourceSize.width: 160       // tiny decode, the blur hides it anyway
+      fillMode: Image.PreserveAspectCrop
+      asynchronous: true
+      source: root.current ? "file://" + root.current.path : ""
+      visible: false
+      layer.enabled: true
+    }
+    Rectangle {                    // rounded-corner mask for the blur
+      id: bgMask
+      anchors.fill: parent
+      radius: 22
+      visible: false
+      layer.enabled: true
+    }
+    MultiEffect {
+      anchors.fill: parent
+      source: bgSrc
+      maskEnabled: true
+      maskSource: bgMask
+      blurEnabled: true
+      blur: 1.0
+      blurMax: 64
+      saturation: 0.3
+    }
+    Rectangle {                    // darken so text stays readable
+      anchors.fill: parent
+      radius: 22
+      color: Qt.rgba(0, 0, 0, 0.55)
+    }
+
+    // Mouse wheel / touchpad scrolling anywhere across the card.
+    // Accumulates delta so a touchpad swipe steps once per ~120 units instead of firing wildly.
     WheelHandler {
+      id: wheel
+      property real acc: 0
       onWheel: event => {
         const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
-        if (delta > 0) {
-          strip.decrementCurrentIndex()
-        } else if (delta < 0) {
-          strip.incrementCurrentIndex()
-        }
+        acc += delta
+        while (acc >= 120) { strip.decrementCurrentIndex(); acc -= 120 }
+        while (acc <= -120) { strip.incrementCurrentIndex(); acc += 120 }
         event.accepted = true
       }
     }
@@ -189,6 +226,12 @@ Item {
               // Left / Right move along the strip, unless you are editing a search
               Keys.onLeftPressed: event => { if (text === "") strip.decrementCurrentIndex(); else event.accepted = false }
               Keys.onRightPressed: event => { if (text === "") strip.incrementCurrentIndex(); else event.accepted = false }
+              // Tab jumps to a random wallpaper
+              Keys.onTabPressed: event => {
+                if (root.results.length > 0)
+                  strip.currentIndex = Math.floor(Math.random() * root.results.length)
+                event.accepted = true
+              }
 
               Text {
                 text: "Search..."
@@ -209,16 +252,45 @@ Item {
         width: parent.width
         height: 300
 
-        Rectangle {
-          anchors.fill: parent
-          radius: 16
-          color: Colors.card
-        }
+        Rectangle { anchors.fill: parent; radius: 16; color: Colors.card }
+
         RoundedImage {
+          id: previewImg
           anchors.fill: parent
           radius: 16
           source: root.current ? "file://" + root.current.path : ""
         }
+
+        Connections {
+          target: root
+          function onCurrentChanged() { swap.restart() }
+        }
+        ParallelAnimation {
+          id: swap
+          NumberAnimation { target: previewImg; property: "opacity"; from: 0.3; to: 1; duration: 260 }
+          NumberAnimation { target: previewImg; property: "scale"; from: 0.96; to: 1; duration: 360; easing.type: Easing.OutCubic }
+        }
+
+        // caption pill: name + position
+        Rectangle {
+          visible: root.current !== null
+          anchors.left: parent.left
+          anchors.bottom: parent.bottom
+          anchors.margins: 14
+          height: 30
+          width: capText.implicitWidth + 28
+          radius: 15
+          color: Qt.rgba(0, 0, 0, 0.55)
+          Text {
+            id: capText
+            anchors.centerIn: parent
+            color: "white"
+            font.family: "JetBrainsMono Nerd Font"
+            font.pixelSize: 12
+            text: root.current ? root.current.name + "   ·   " + (strip.currentIndex + 1) + " / " + root.results.length : ""
+          }
+        }
+
         Text {
           anchors.centerIn: parent
           visible: root.results.length === 0
@@ -243,17 +315,25 @@ Item {
         highlightMoveDuration: 220
 
         delegate: Item {
+          id: del
           required property var modelData
           required property int index
           readonly property bool selected: ListView.isCurrentItem
+          // distance from the strip's centre drives scale / opacity / tilt continuously
+          readonly property real dist: (x + width / 2) - (strip.contentX + strip.width / 2)
+          readonly property real norm: Math.max(-1, Math.min(1, dist / 320))
 
           width: 240
           height: strip.height
-          z: selected ? 2 : 1
-          scale: selected ? 1.15 : 0.85
-          opacity: selected ? 1 : 0.65
-          Behavior on scale   { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-          Behavior on opacity { NumberAnimation { duration: 200 } }
+          z: 10 - Math.abs(norm) * 5
+          scale: 1.15 - 0.3 * Math.abs(norm)
+          opacity: 1 - 0.45 * Math.abs(norm)
+          transform: Rotation {
+            origin.x: del.width / 2
+            origin.y: del.height / 2
+            axis { x: 0; y: 1; z: 0 }
+            angle: -del.norm * 35
+          }
 
           Column {
             anchors.centerIn: parent
@@ -262,6 +342,26 @@ Item {
             Item {
               width: 200
               height: 112
+
+              // accent glow: a plain rounded rect, blurred, sitting behind the thumbnail
+              Rectangle {
+                id: glowSrc
+                anchors.fill: parent
+                radius: 12
+                color: Colors.accent
+                visible: false
+                layer.enabled: true
+              }
+              MultiEffect {
+                anchors.fill: parent
+                anchors.margins: -6
+                source: glowSrc
+                blurEnabled: true
+                blur: 1.0
+                blurMax: 32
+                opacity: del.selected ? 0.8 : 0
+                Behavior on opacity { NumberAnimation { duration: 220 } }
+              }
 
               Rectangle {
                 anchors.fill: parent
@@ -272,21 +372,21 @@ Item {
                 anchors.fill: parent
                 radius: 12
                 decodeWidth: 400
-                source: "file://" + modelData.path
+                source: "file://" + del.modelData.path
               }
               Rectangle {
                 anchors.fill: parent
                 radius: 12
                 color: "transparent"
-                border.width: selected ? 2 : 0
+                border.width: del.selected ? 2 : 0
                 border.color: Colors.accent
               }
             }
 
             Text {
               width: 200
-              text: modelData.name
-              color: selected ? Colors.text : Colors.subtext
+              text: del.modelData.name
+              color: del.selected ? Colors.text : Colors.subtext
               font.family: "JetBrainsMono Nerd Font"
               font.pixelSize: 11
               elide: Text.ElideMiddle
@@ -297,18 +397,45 @@ Item {
           MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: if (selected) root.apply(modelData); else strip.currentIndex = index
+            onClicked: if (del.selected) root.apply(del.modelData); else strip.currentIndex = del.index
           }
         }
       }
 
-      Text {
-        width: parent.width
-        horizontalAlignment: Text.AlignHCenter
-        text: "← → / scroll  browse    ·    Enter / click selected  apply    ·    type to search    ·    Esc  close"
-        color: Colors.subtext
-        font.family: "JetBrainsMono Nerd Font"
-        font.pixelSize: 11
+      // ----- keycap hints -----
+      Row {
+        anchors.horizontalCenter: parent.horizontalCenter
+        spacing: 18
+        Repeater {
+          model: [["← →", "browse"], ["Enter", "apply"], ["Tab", "random"], ["Esc", "close"]]
+          delegate: Row {
+            required property var modelData
+            spacing: 6
+            Rectangle {
+              height: 20
+              width: keyText.implicitWidth + 14
+              radius: 6
+              color: Colors.card
+              border.color: Colors.subtext
+              border.width: 1
+              Text {
+                id: keyText
+                anchors.centerIn: parent
+                text: modelData[0]
+                color: Colors.text
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 10
+              }
+            }
+            Text {
+              text: modelData[1]
+              color: Colors.subtext
+              font.family: "JetBrainsMono Nerd Font"
+              font.pixelSize: 11
+              anchors.verticalCenter: parent.verticalCenter
+            }
+          }
+        }
       }
     }
   }

@@ -59,6 +59,10 @@ sudo mkdir -p "$SDDM_CONF_DIR"
 sudo tee "$SDDM_CONF_DIR/theme.conf" > /dev/null << CONF
 [Theme]
 Current=${THEME_NAME}
+
+[General]
+# lets the login screen read /var/cache/wal/colors.json (Qt blocks local file reads by default)
+GreeterEnvironment=QML_XHR_ALLOW_FILE_READ=1
 CONF
 
 sudo systemctl enable sddm.service

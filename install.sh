@@ -272,38 +272,6 @@ else
     run_command "as_user env PATH='$CARGO_PATH' cargo install matugen --locked" "Building matugen"
 fi
 
-# LocalSend from the official GitHub release (no AUR needed)
-install_localsend() {
-    local url tmp bin
-    url=$(curl -fsSL https://api.github.com/repos/localsend/localsend/releases/latest \
-          | jq -r '.assets[] | select(.name | test("linux-x86-64\\.tar\\.gz$")) | .browser_download_url' \
-          | head -n1)
-    [[ -n "$url" ]] || { echo "Could not find the LocalSend release tarball"; return 1; }
-
-    tmp=$(mktemp -d)
-    curl -fsSL "$url" -o "$tmp/localsend.tar.gz"
-    rm -rf /opt/localsend && mkdir -p /opt/localsend
-    tar -xzf "$tmp/localsend.tar.gz" -C /opt/localsend
-    rm -rf "$tmp"
-
-    bin=$(find /opt/localsend -name localsend_app -type f | head -n1)
-    [[ -n "$bin" ]] || { echo "localsend_app not found in tarball"; return 1; }
-    chmod +x "$bin"
-    ln -sf "$bin" /usr/local/bin/localsend
-
-    cat > /usr/share/applications/localsend.desktop << EOF
-[Desktop Entry]
-Name=LocalSend
-Comment=Share files to nearby devices
-Exec=/usr/local/bin/localsend
-Terminal=false
-Type=Application
-Categories=Network;FileTransfer;
-EOF
-}
-
-run_command "install_localsend" "Installing LocalSend"
-
 ################################################################################
 # 5. FOLDERS
 ################################################################################

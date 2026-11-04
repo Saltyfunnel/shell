@@ -63,6 +63,32 @@ headerbar button:hover,
   color: {{colors.on_primary.default.hex}};
 }
 
+/* --- Rubberband (drag-select box) --- */
+rubberband,
+.rubberband,
+.view.rubberband,
+iconview rubberband,
+iconview .rubberband,
+treeview.view rubberband {
+  background-color: alpha({{colors.primary.default.hex}}, 0.2);
+  background-image: none;
+  border: 1px solid {{colors.primary.default.hex}};
+  box-shadow: none;
+}
+
+/* --- Selected icon view items (replaces default blue) --- */
+iconview:selected,
+iconview .cell:selected,
+iconview.view .cell:selected,
+.view .cell:selected,
+.view:selected:focus,
+iconview:selected:focus {
+  background-color: {{colors.primary.default.hex}};
+  background-image: none;
+  color: {{colors.on_primary.default.hex}};
+  border-radius: 8px;
+}
+
 button {
   background-image: none;
   background-color: {{colors.surface_container_highest.default.hex}};
@@ -163,4 +189,31 @@ menu, .menu, popover, .popover {
 menu menuitem:hover, .menu menuitem:hover {
   background-color: {{colors.primary.default.hex}};
   color: {{colors.on_primary.default.hex}};
+}
+
+/* --- Menubar (Thunar's File/Edit/View bar) --- */
+menubar,
+.menubar,
+menubar:backdrop,
+.menubar:backdrop,
+window:backdrop menubar {
+  background-color: {{colors.surface.default.hex}};
+  background-image: none;
+  color: {{colors.on_surface.default.hex}};
+  border: none;
+  box-shadow: none;
+}
+
+menubar > menuitem,
+menubar > menuitem label {
+  background-color: transparent;
+  background-image: none;
+  color: {{colors.on_surface.default.hex}};
+}
+
+menubar > menuitem:hover,
+menubar > menuitem:checked,
+menubar > menuitem:active {
+  background-color: {{colors.primary_container.default.hex}};
+  color: {{colors.on_surface.default.hex}};
 }

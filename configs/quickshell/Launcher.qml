@@ -153,7 +153,7 @@ Scope {
   OverlayCard {
     id: card
     shown: root.openPopup === root.popupName
-    cardWidth: 760
+    cardWidth: 900
     cardHeight: 480
     onDismissed: root.toggle(root.popupName)
 
@@ -173,10 +173,10 @@ Scope {
       spacing: 16
 
       // ==========================================
-      // LEFT PANE: Mini Wallpaper Preview & Details (42%)
+      // LEFT PANE: Mini Wallpaper Preview & Details (52%)
       // ==========================================
       Rectangle {
-        width: Math.floor(parent.width * 0.42) - 8
+        width: Math.floor(parent.width * 0.52) - 8
         height: parent.height
         radius: 16
         clip: true
@@ -253,98 +253,99 @@ Scope {
               }
             }
           }
+        }
 
-          // Bottom Action Row (Pinned to bottom of the left panel)
-          Row {
-            anchors.bottom: parent.bottom
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 8
+        // Bottom Action Row (Pinned to bottom of the left panel)
+        Row {
+          anchors.bottom: parent.bottom
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.bottomMargin: 16
+          spacing: 8
 
-            // Hide App Button
-            Rectangle {
-              height: 28
-              width: 100
-              radius: 8
-              color: hideMouse.containsMouse ? Qt.alpha(Colors.accent, 0.25) : Qt.alpha(Colors.card, 0.4)
-              border.color: Qt.alpha(Colors.accent, 0.4)
-              border.width: 1
+          // Hide App Button
+          Rectangle {
+            height: 28
+            width: 100
+            radius: 8
+            color: hideMouse.containsMouse ? Qt.alpha(Colors.accent, 0.25) : Qt.alpha(Colors.card, 0.4)
+            border.color: Qt.alpha(Colors.accent, 0.4)
+            border.width: 1
 
-              Behavior on color { ColorAnimation { duration: 100 } }
+            Behavior on color { ColorAnimation { duration: 100 } }
 
-              Row {
-                anchors.centerIn: parent
-                spacing: 5
-                Text {
-                  text: "󰜺"
-                  color: Colors.accent
-                  font.family: "JetBrainsMono Nerd Font"
-                  font.pixelSize: 12
-                }
-                Text {
-                  text: "Hide"
-                  color: Colors.accent
-                  font.family: "JetBrainsMono Nerd Font"
-                  font.pixelSize: 11
-                  font.weight: Font.Bold
-                }
+            Row {
+              anchors.centerIn: parent
+              spacing: 5
+              Text {
+                text: "󰜺"
+                color: Colors.accent
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 12
               }
-
-              MouseArea {
-                id: hideMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.hideCurrentApp()
+              Text {
+                text: "Hide"
+                color: Colors.accent
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 11
+                font.weight: Font.Bold
               }
             }
 
-            // Reset Hidden Apps Button (Only visible if apps are currently hidden)
-            Rectangle {
-              height: 28
-              width: 100
-              radius: 8
-              visible: root.hiddenApps.length > 0
-              color: resetMouse.containsMouse ? Qt.alpha(Colors.text, 0.2) : Qt.alpha(Colors.card, 0.4)
-              border.color: Qt.alpha(Colors.text, 0.3)
-              border.width: 1
+            MouseArea {
+              id: hideMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.hideCurrentApp()
+            }
+          }
 
-              Behavior on color { ColorAnimation { duration: 100 } }
+          // Reset Hidden Apps Button (Only visible if apps are currently hidden)
+          Rectangle {
+            height: 28
+            width: 100
+            radius: 8
+            visible: root.hiddenApps.length > 0
+            color: resetMouse.containsMouse ? Qt.alpha(Colors.text, 0.2) : Qt.alpha(Colors.card, 0.4)
+            border.color: Qt.alpha(Colors.text, 0.3)
+            border.width: 1
 
-              Row {
-                anchors.centerIn: parent
-                spacing: 5
-                Text {
-                  text: "󰃨"
-                  color: Colors.text
-                  font.family: "JetBrainsMono Nerd Font"
-                  font.pixelSize: 12
-                }
-                Text {
-                  text: "Reset (" + root.hiddenApps.length + ")"
-                  color: Colors.text
-                  font.family: "JetBrainsMono Nerd Font"
-                  font.pixelSize: 11
-                  font.weight: Font.Bold
-                }
+            Behavior on color { ColorAnimation { duration: 100 } }
+
+            Row {
+              anchors.centerIn: parent
+              spacing: 5
+              Text {
+                text: "󰃨"
+                color: Colors.text
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 12
               }
-
-              MouseArea {
-                id: resetMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.resetHiddenApps()
+              Text {
+                text: "Reset (" + root.hiddenApps.length + ")"
+                color: Colors.text
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: 11
+                font.weight: Font.Bold
               }
+            }
+
+            MouseArea {
+              id: resetMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.resetHiddenApps()
             }
           }
         }
       }
 
       // ==========================================
-      // RIGHT PANE: Search Bar & Application List (58%)
+      // RIGHT PANE: Search Bar & Application List (48%)
       // ==========================================
       Column {
-        width: Math.floor(parent.width * 0.58) - 8
+        width: Math.floor(parent.width * 0.48) - 8
         height: parent.height
         spacing: 14
 

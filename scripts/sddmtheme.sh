@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ################################################################################
-# install-sddm-theme.sh — a login screen that follows your wallpaper colours.
+# sddmtheme.sh — a login screen that follows your wallpaper colours.
 # Run from the repo folder, AFTER install.sh, as your normal user:
 #     bash install-sddm-theme.sh
 #

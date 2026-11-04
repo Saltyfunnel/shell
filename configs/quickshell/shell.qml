@@ -27,6 +27,12 @@ ShellRoot {
     function toggle(): void { root.toggle("launcher") }
   }
 
+  WallpaperPicker {
+    id: wallpaperPicker
+    openPopup: root.openPopup
+    onToggle: name => root.toggle(name)
+  }
+
   // Multi-monitor support across all active screens
   Variants {
     model: Quickshell.screens
@@ -160,7 +166,7 @@ ShellRoot {
       // Native Hyprland focus grab including bar and popup windows
       HyprlandFocusGrab {
         active: root.openPopup !== ""
-        windows: [ barWindow, powerModule.popup, launcher.popup, dashboard.popup ]
+        windows: [ barWindow, powerModule.popup, launcher.popup, dashboard.popup, wallpaperPicker.popup ]
         onCleared: root.openPopup = ""
       }
     }

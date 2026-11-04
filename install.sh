@@ -377,13 +377,14 @@ print_ok "/var/cache/wal ready for matugen's SDDM colours"
 
 # Install the SDDM theme (script + Main.qml live in the repo)
 SDDM_SCRIPT=""
-for candidate in "$REPO_ROOT/install-sddm-theme.sh" "$SCRIPTS_SRC/install-sddm-theme.sh"; do
+for candidate in "$SCRIPTS_SRC/install-sddm-theme.sh" "$SCRIPTS_SRC/sddmtheme.sh" \
+                 "$REPO_ROOT/install-sddm-theme.sh"; do
     [[ -f "$candidate" ]] && { SDDM_SCRIPT="$candidate"; break; }
 done
 if [[ -n "$SDDM_SCRIPT" ]]; then
-    run_command "bash '$SDDM_SCRIPT'" "Installing the SDDM theme"
+    run_command "env REPO_ROOT='$REPO_ROOT' bash '$SDDM_SCRIPT'" "Installing the SDDM theme"
 else
-    print_warn "install-sddm-theme.sh not found in the repo. SDDM will use its default theme."
+    print_warn "SDDM theme script not found in scripts/. SDDM will use its default theme."
 fi
 
 if systemctl enable sddm.service > "$LOG_DIR/enable-sddm.log" 2>&1; then

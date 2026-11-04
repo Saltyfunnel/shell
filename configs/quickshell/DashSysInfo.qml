@@ -1,4 +1,5 @@
-// DashSysInfo.qml — avatar (~/.face) plus distro, window manager and uptime.
+// DashSysInfo.qml — avatar (~/.face) plus distro, window manager and uptime,
+// on top of the current wallpaper.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -8,6 +9,7 @@ DashPanel {
 
   property string distro: "Linux"
   property real uptimeSec: 0
+  property string wallpaper: ""
   readonly property string wm: Quickshell.env("XDG_CURRENT_DESKTOP") || "Hyprland"
 
   function fmtUptime(s) {
@@ -31,6 +33,14 @@ DashPanel {
     id: upFile
     path: "/proc/uptime"
     onLoaded: root.uptimeSec = Number(text().split(" ")[0])
+  }
+  // current wallpaper path, written by setwall.sh
+  FileView {
+    id: wallFile
+    path: Quickshell.env("HOME") + "/.cache/current_wallpaper"
+    watchChanges: true
+    onFileChanged: reload()
+    onLoaded: root.wallpaper = text().trim()
   }
   Timer {
     running: true
@@ -61,6 +71,20 @@ DashPanel {
       elide: Text.ElideRight
       width: 120
     }
+  }
+
+  // ---------- background: the current wallpaper, darkened ----------
+  RoundedImage {
+    anchors.fill: parent
+    radius: 16               // match your DashPanel's corner radius
+    decodeWidth: 600
+    source: root.wallpaper !== "" ? "file://" + root.wallpaper : ""
+  }
+  Rectangle {
+    anchors.fill: parent
+    radius: 16
+    color: Colors.card
+    opacity: 0.55            // lower = more wallpaper, higher = crisper text
   }
 
   Row {

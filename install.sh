@@ -67,30 +67,44 @@ spinner() {
     printf '\r\e[K\e[?25h'
 }
 
+# Status lines are transient: in a terminal they overwrite the current line, so
+# only what's happening right now is visible. Without a TTY (piped/logged) they
+# print as normal lines instead.
+status() {
+    if (( IS_TTY )); then printf '\r\e[K%b' "$1"; else printf '%b\n' "$1"; fi
+}
+
 print_phase() {
     STEP=$((STEP + 1))
-    local width=24
+    local width=30
     local pct=$(( STEP * 100 / TOTAL_STEPS )); [[ $pct -gt 100 ]] && pct=100
     local full=$(( STEP * width / TOTAL_STEPS )); [[ $full -gt $width ]] && full=$width
     local bar="${BCYN}$(repeat "$G_FULL" "$full")${RST}${BBLK}$(repeat "$G_EMPTY" $(( width - full )))${RST}"
+    if (( IS_TTY )); then clear; fi
     echo ""
-    echo -e "  ${bar}  ${BBLK}$(printf '%3d%%' "$pct")${RST}  ${BLD}${BWHT}$1${RST}"
+    echo -e "    ${BLD}${BCYN}my-shell${RST}  ${BBLK}installer${RST}"
+    echo ""
+    hr
+    echo -e "    ${bar}  ${BBLK}$(printf '%3d%%' "$pct")  step ${STEP}/${TOTAL_STEPS}${RST}"
+    echo -e "    ${BLD}${BWHT}$1${RST}"
+    hr
+    echo ""
 }
 
-print_ok()   { # print_ok <msg> [seconds]
+print_ok() {  # print_ok <msg> [seconds]
     local t=""
     [[ -n "${2:-}" && "${2:-0}" -ge 2 ]] && t="  ${BBLK}$(fmt_time "$2")${RST}"
-    echo -e "    ${BGRN}${G_OK}${RST}  $1${t}"
+    status "    ${BGRN}${G_OK}${RST}  $1${t}"
 }
-print_warn() { WARNINGS+=("$1"); echo -e "    ${BYLW}${G_WARN}${RST}  $1"; }
-print_info() { echo -e "    ${BBLK}${G_DOT}  $1${RST}"; }
-print_err()  { echo -e "\n    ${BRED}${G_ERR}  ${BLD}$1${RST}\n" >&2; exit 1; }
+print_warn() { WARNINGS+=("$1"); status "    ${BYLW}${G_WARN}${RST}  $1"; }
+print_info() { status "    ${BBLK}${G_DOT}  $1${RST}"; }
+print_err()  { printf '\r\e[K' >&2; echo -e "\n    ${BRED}${G_ERR}  ${BLD}$1${RST}\n" >&2; exit 1; }
 
 # Run a command as your normal user (not root), with your HOME set.
 as_user() { sudo -u "$USER_NAME" -H "$@"; }
 
-# Run a command with a live spinner. One line in, one line out. If it fails, show
-# the end of its log and stop.
+# Run a command with a live spinner. On success the line is simply replaced by
+# the next task; on failure the end of the log is shown and the script stops.
 run_command() {
     local cmd="$1" desc="$2" start=$SECONDS
     local slug; slug=$(echo "$desc" | tr -c 'a-zA-Z0-9\n' '_' | cut -c1-60)
@@ -222,7 +236,8 @@ LOGIN=(sddm hyprlock)
 AUDIO=(pipewire pipewire-pulse pipewire-alsa wireplumber playerctl pavucontrol)
 TERMINAL=(kitty fish starship fastfetch btop)
 UTILITY=(grim slurp wl-clipboard brightnessctl pacman-contrib wf-recorder upower libnotify
-         bluez bluez-utils blueman networkmanager udisks2 udiskie gvfs)
+         bluez bluez-utils blueman networkmanager udisks2 udiskie gvfs
+         gtk3 libayatana-appindicator)
 FILES=(thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller trash-cli)
 MEDIA=(mpv imv ffmpeg yt-dlp cava)
 SETTINGS=(dconf gsettings-desktop-schemas)
@@ -239,10 +254,10 @@ run_command "pacman -S --noconfirm --needed ${ALL_PACKAGES[*]}" \
     "Installing ${#ALL_PACKAGES[@]} packages"
 
 ################################################################################
-# 4. QUICKSHELL + MATUGEN
+# 4. QUICKSHELL, MATUGEN & LOCALSEND
 ################################################################################
 
-print_phase "Quickshell & matugen"
+print_phase "Quickshell, matugen & LocalSend"
 
 if pacman -Si quickshell >/dev/null 2>&1; then
     run_command "pacman -S --noconfirm --needed quickshell" "Installing Quickshell"
@@ -256,6 +271,38 @@ else
     print_info "matugen not in the repos, building with cargo (takes a few minutes)"
     run_command "as_user env PATH='$CARGO_PATH' cargo install matugen --locked" "Building matugen"
 fi
+
+# LocalSend from the official GitHub release (no AUR needed)
+install_localsend() {
+    local url tmp bin
+    url=$(curl -fsSL https://api.github.com/repos/localsend/localsend/releases/latest \
+          | jq -r '.assets[] | select(.name | test("linux-x86-64\\.tar\\.gz$")) | .browser_download_url' \
+          | head -n1)
+    [[ -n "$url" ]] || { echo "Could not find the LocalSend release tarball"; return 1; }
+
+    tmp=$(mktemp -d)
+    curl -fsSL "$url" -o "$tmp/localsend.tar.gz"
+    rm -rf /opt/localsend && mkdir -p /opt/localsend
+    tar -xzf "$tmp/localsend.tar.gz" -C /opt/localsend
+    rm -rf "$tmp"
+
+    bin=$(find /opt/localsend -name localsend_app -type f | head -n1)
+    [[ -n "$bin" ]] || { echo "localsend_app not found in tarball"; return 1; }
+    chmod +x "$bin"
+    ln -sf "$bin" /usr/local/bin/localsend
+
+    cat > /usr/share/applications/localsend.desktop << EOF
+[Desktop Entry]
+Name=LocalSend
+Comment=Share files to nearby devices
+Exec=/usr/local/bin/localsend
+Terminal=false
+Type=Application
+Categories=Network;FileTransfer;
+EOF
+}
+
+run_command "install_localsend" "Installing LocalSend"
 
 ################################################################################
 # 5. FOLDERS
@@ -444,6 +491,7 @@ print_ok "Ownership set"
 # DONE
 ################################################################################
 
+if (( IS_TTY )); then clear; fi
 echo ""
 hr
 echo ""

@@ -26,8 +26,7 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
     hl.exec_cmd("/usr/lib/polkit-kde-authentication-agent-1")
     hl.exec_cmd("hyprpaper")
-    hl.exec_cmd("quickshell")                                   -- the new bar
-    -- hl.exec_cmd("waybar")                                    -- old bar: uncomment if Quickshell breaks
+    hl.exec_cmd("quickshell")
     hl.exec_cmd("mako")
     hl.exec_cmd("udiskie")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface icon-theme 'Colloid-Dynamic-Dark'")
@@ -144,6 +143,12 @@ hl.window_rule({ match = { class = "kitty" }, opacity = "0.80" })
 hl.window_rule({ match = { class = "^[tT]hunar$" }, opacity = "0.80 0.80" })
 hl.window_rule({ match = { class = "Spotify" }, opacity = "0.80 0.80" })
 hl.window_rule({ match = { class = "kitty" }, suppress_event = "maximize" })
+
+hl.window_rule({ match = { class = "updates" }, float = true })
+hl.window_rule({ match = { class = "updates" }, center = true })
+hl.window_rule({ match = { class = "updates" }, size = "900 500" })
+hl.window_rule({ match = { class = "updates" }, opacity = "0.80" })
+hl.window_rule({ match = { class = "updates" }, suppress_event = "maximize" })
 
 --------------------------------------------------------------------------------
 -- keybinds

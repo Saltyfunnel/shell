@@ -1,5 +1,5 @@
-// RingGauge.qml — a circular gauge: ring that fills with `fraction`, value in the middle, label under it.
-// Turns red above 85%.
+// RingGauge.qml — a circular gauge: ring that fills with `fraction`, value in the middle,
+// a bold title and a dimmer detail line under it. Turns red above 85%.
 import QtQuick
 
 Item {
@@ -7,12 +7,13 @@ Item {
 
   property real fraction: 0          // 0..1
   property string valueText: ""
-  property string label: ""
+  property string title: ""          // e.g. "Memory"
+  property string detail: ""         // e.g. "2.2 / 15.3 GB" (may be empty)
   property color ringColor: Colors.accent
   property int size: 104
 
   width: size
-  height: size + 24
+  height: size + 52                  // fixed, so every ring lines up even with no detail
 
   // animated copy of fraction, so the ring glides instead of jumping
   property real shown: Math.max(0, Math.min(1, fraction))
@@ -58,12 +59,29 @@ Item {
     font.bold: true
   }
 
-  Text {
+  Column {
+    anchors.top: canvas.bottom
+    anchors.topMargin: 12
     anchors.horizontalCenter: parent.horizontalCenter
-    anchors.bottom: parent.bottom
-    text: root.label
-    color: Colors.subtext
-    font.family: Theme.font
-    font.pixelSize: 12
+    spacing: 3
+
+    Text {
+      anchors.horizontalCenter: parent.horizontalCenter
+      horizontalAlignment: Text.AlignHCenter
+      text: root.title
+      color: Colors.text
+      font.family: Theme.font
+      font.pixelSize: 14
+      font.bold: true
+    }
+    Text {
+      anchors.horizontalCenter: parent.horizontalCenter
+      horizontalAlignment: Text.AlignHCenter
+      visible: root.detail !== ""
+      text: root.detail
+      color: Colors.subtext
+      font.family: Theme.font
+      font.pixelSize: 12
+    }
   }
 }

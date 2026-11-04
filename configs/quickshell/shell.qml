@@ -58,7 +58,7 @@ ShellRoot {
         anchors.verticalCenter: parent.verticalCenter
         height: 28
         width: leftRow.implicitWidth + 20
-        radius: 8
+        radius: 15
         color: Colors.surface
         border.color: Colors.accent
         border.width: 1
@@ -83,7 +83,7 @@ ShellRoot {
         anchors.centerIn: parent
         height: 28
         width: centerRow.implicitWidth + 20
-        radius: 8
+        radius: 15
         color: Colors.surface
         border.color: Colors.accent
         border.width: 1
@@ -109,7 +109,7 @@ ShellRoot {
         anchors.verticalCenter: parent.verticalCenter
         height: 28
         width: powerRow.implicitWidth + 20
-        radius: 8
+        radius: 15
         color: Colors.surface
         border.color: Colors.accent
         border.width: 1

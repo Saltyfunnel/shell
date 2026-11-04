@@ -11,33 +11,38 @@ DashPanel {
     // ----- rings -----
     Row {
       anchors.horizontalCenter: parent.horizontalCenter
-      spacing: 48
+      spacing: 56
 
       RingGauge {
-        label: "CPU" + (SystemStats.cpuTemp >= 0 ? "  ·  " + SystemStats.cpuTemp + "°C" : "")
+        title: "CPU"
+        detail: SystemStats.cpuTemp >= 0 ? SystemStats.cpuTemp + "°C" : ""
         valueText: Math.round(SystemStats.cpu) + "%"
         fraction: SystemStats.cpu / 100
       }
       RingGauge {
-        label: SystemStats.ramUsedGb.toFixed(1) + " / " + SystemStats.ramTotalGb.toFixed(1) + " GB"
+        title: "Memory"
+        detail: SystemStats.ramUsedGb.toFixed(1) + " / " + SystemStats.ramTotalGb.toFixed(1) + " GB"
         valueText: Math.round(SystemStats.ram) + "%"
         fraction: SystemStats.ram / 100
       }
       RingGauge {
         visible: SystemStats.gpuLoad >= 0
-        label: "GPU" + (SystemStats.gpuTemp >= 0 ? "  ·  " + SystemStats.gpuTemp + "°C" : "")
+        title: "GPU"
+        detail: SystemStats.gpuTemp >= 0 ? SystemStats.gpuTemp + "°C" : ""
         valueText: SystemStats.gpuLoad + "%"
         fraction: SystemStats.gpuLoad / 100
       }
       RingGauge {
         visible: SystemStats.diskTotalGb > 0
-        label: Math.round(SystemStats.diskUsedGb) + " / " + Math.round(SystemStats.diskTotalGb) + " GB"
+        title: "Disk"
+        detail: Math.round(SystemStats.diskUsedGb) + " / " + Math.round(SystemStats.diskTotalGb) + " GB"
         valueText: SystemStats.diskTotalGb > 0 ? Math.round(SystemStats.diskUsedGb / SystemStats.diskTotalGb * 100) + "%" : ""
         fraction: SystemStats.diskTotalGb > 0 ? SystemStats.diskUsedGb / SystemStats.diskTotalGb : 0
       }
       RingGauge {
         visible: SystemStats.hasBattery
-        label: SystemStats.charging ? "Battery (charging)" : "Battery"
+        title: "Battery"
+        detail: SystemStats.charging ? "charging" : ""
         valueText: Math.round(SystemStats.batteryPct) + "%"
         fraction: SystemStats.batteryPct / 100
       }

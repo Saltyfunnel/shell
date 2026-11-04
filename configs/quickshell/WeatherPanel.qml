@@ -1,4 +1,5 @@
 // WeatherPanel.qml — the dashboard's Weather tab: current conditions, details, 3-day forecast.
+// Left: a "now" card over a details card. Right: forecast cards that stretch to fill the height.
 import QtQuick
 
 DashPanel {
@@ -14,105 +15,134 @@ DashPanel {
   Row {
     visible: Weather.loaded
     anchors.fill: parent
-    anchors.margins: 28
-    spacing: 40
+    anchors.margins: 20
+    spacing: 16
 
-    // ----- now -----
+    // =================== left: now + details ===================
     Column {
       width: (parent.width - parent.spacing) / 2
-      anchors.verticalCenter: parent.verticalCenter
-      spacing: 18
+      height: parent.height
+      spacing: 16
 
-      Row {
-        spacing: 20
-        Text {
-          text: Weather.icon
-          color: Colors.accent
-          font.family: Theme.font
-          font.pixelSize: 72
-          anchors.verticalCenter: parent.verticalCenter
-        }
-        Column {
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: 2
+      // ----- now card -----
+      Rectangle {
+        id: nowCard
+        width: parent.width
+        height: 140
+        radius: Theme.radiusSm
+        color: Colors.surface
+
+        Row {
+          anchors.centerIn: parent
+          spacing: 24
+
           Text {
-            text: Weather.tempC + "°C"
-            color: Colors.text
+            text: Weather.icon
+            color: Colors.accent
             font.family: Theme.font
-            font.pixelSize: 44
-            font.bold: true
+            font.pixelSize: 72
+            anchors.verticalCenter: parent.verticalCenter
           }
-          Text {
-            text: Weather.desc + "  ·  feels like " + Weather.feelsC + "°"
-            color: Colors.subtext
-            font.family: Theme.font
-            font.pixelSize: 13
-          }
-          Text {
-            text: Config.weatherTown
-            color: Colors.subtext
-            font.family: Theme.font
-            font.pixelSize: 12
-            opacity: 0.7
+          Column {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 3
+            Text {
+              text: Weather.tempC + "°C"
+              color: Colors.text
+              font.family: Theme.font
+              font.pixelSize: 44
+              font.bold: true
+            }
+            Text {
+              text: Weather.desc + "  ·  feels like " + Weather.feelsC + "°"
+              color: Colors.subtext
+              font.family: Theme.font
+              font.pixelSize: 13
+            }
+            Text {
+              text: Config.weatherTown
+              color: Colors.subtext
+              font.family: Theme.font
+              font.pixelSize: 12
+              opacity: 0.7
+            }
           }
         }
       }
 
-      Column {
+      // ----- details card (fills the rest of the column) -----
+      Rectangle {
         width: parent.width
-        spacing: 8
-        InfoRow { label: "Humidity";      value: Weather.humidity + "%" }
-        InfoRow { label: "Wind";          value: Weather.windMph + " mph " + Weather.windDir }
-        InfoRow { label: "Pressure";      value: Weather.pressure + " mb" }
-        InfoRow { label: "UV index";      value: Weather.uv }
-        InfoRow { label: "Precipitation"; value: Weather.precipMm + " mm" }
+        height: parent.height - nowCard.height - parent.spacing
+        radius: Theme.radiusSm
+        color: Colors.surface
+
+        Column {
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.margins: 20
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: 12
+
+          InfoRow { label: "Humidity";      value: Weather.humidity + "%" }
+          InfoRow { label: "Wind";          value: Weather.windMph + " mph " + Weather.windDir }
+          InfoRow { label: "Pressure";      value: Weather.pressure + " mb" }
+          InfoRow { label: "UV index";      value: Weather.uv }
+          InfoRow { label: "Precipitation"; value: Weather.precipMm + " mm" }
+        }
       }
     }
 
-    // ----- next days -----
+    // =================== right: forecast ===================
     Column {
       width: (parent.width - parent.spacing) / 2
-      anchors.verticalCenter: parent.verticalCenter
-      spacing: 12
+      height: parent.height
+      spacing: 16
 
       Repeater {
+        id: forecastRepeater
         model: Weather.forecast
 
         Rectangle {
           required property var modelData
           width: parent.width
-          height: 70
+          // split the column height evenly between the days
+          height: (parent.height - parent.spacing * (forecastRepeater.count - 1)) / Math.max(1, forecastRepeater.count)
           radius: Theme.radiusSm
           color: Colors.surface
 
           Row {
-            anchors.fill: parent
-            anchors.leftMargin: 18
-            anchors.rightMargin: 18
-            spacing: 16
+            anchors.left: parent.left
+            anchors.leftMargin: 22
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 18
 
             Text {
-              width: 100
+              width: 96
               text: modelData.label
               color: Colors.text
               font.family: Theme.font
-              font.pixelSize: 14
+              font.pixelSize: 15
+              font.bold: true
               anchors.verticalCenter: parent.verticalCenter
             }
             Text {
               text: Weather.iconFor(modelData.code, false)
               color: Colors.accent
               font.family: Theme.font
-              font.pixelSize: 28
+              font.pixelSize: 36
               anchors.verticalCenter: parent.verticalCenter
             }
-            Text {
-              text: modelData.maxC + "°  /  " + modelData.minC + "°"
-              color: Colors.subtext
-              font.family: Theme.font
-              font.pixelSize: 14
-              anchors.verticalCenter: parent.verticalCenter
-            }
+          }
+
+          Text {
+            anchors.right: parent.right
+            anchors.rightMargin: 22
+            anchors.verticalCenter: parent.verticalCenter
+            text: modelData.maxC + "°  /  " + modelData.minC + "°"
+            color: Colors.subtext
+            font.family: Theme.font
+            font.pixelSize: 15
           }
         }
       }

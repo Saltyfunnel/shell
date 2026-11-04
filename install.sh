@@ -1,7 +1,7 @@
 #!/bin/bash
 ################################################################################
 # my-shell installer — Arch Linux + Hyprland + Quickshell + matugen theming
-# No login manager: tty1 logs you in automatically and fish starts Hyprland.
+# Login screen: SDDM (matugen-themed).  Lock screen: hyprlock.
 # Run from the repo folder:   sudo bash install.sh
 ################################################################################
 
@@ -185,6 +185,7 @@ print_phase "Installing packages"
 CORE=(hyprland hyprpaper xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
       polkit-kde-agent qt6-5compat qt6-declarative qt6-svg qt5-wayland qt6-wayland
       mako)
+LOGIN=(sddm hyprlock)
 AUDIO=(pipewire pipewire-pulse pipewire-alsa wireplumber playerctl pavucontrol)
 TERMINAL=(kitty fish starship fastfetch btop)
 UTILITY=(grim slurp wl-clipboard brightnessctl pacman-contrib wf-recorder upower libnotify
@@ -198,7 +199,7 @@ DEV=(git base-devel curl wget nano jq rust)
 FONTS=(ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji)
 DISK=(ntfs-3g dosfstools unzip p7zip unrar)
 
-ALL_PACKAGES=("${CORE[@]}" "${AUDIO[@]}" "${TERMINAL[@]}" "${UTILITY[@]}" "${FILES[@]}"
+ALL_PACKAGES=("${CORE[@]}" "${LOGIN[@]}" "${AUDIO[@]}" "${TERMINAL[@]}" "${UTILITY[@]}" "${FILES[@]}"
               "${MEDIA[@]}" "${SETTINGS[@]}" "${APPS[@]}" "${GAMING[@]}" "${DEV[@]}" "${FONTS[@]}" "${DISK[@]}")
 
 run_command "pacman -S --noconfirm --needed ${ALL_PACKAGES[*]}" \
@@ -241,7 +242,7 @@ print_ok "Folders created"
 
 print_phase "Deploying config files"
 
-deploy "$CONFIGS_SRC/hypr"        "$CONFIG_DIR/hypr"        "Hyprland config"
+deploy "$CONFIGS_SRC/hypr"        "$CONFIG_DIR/hypr"        "Hyprland config (incl. hyprlock)"
 deploy "$CONFIGS_SRC/quickshell"  "$CONFIG_DIR/quickshell"  "Quickshell bar"
 deploy "$CONFIGS_SRC/matugen"     "$CONFIG_DIR/matugen"     "matugen config & templates"
 deploy "$CONFIGS_SRC/kitty"       "$CONFIG_DIR/kitty"       "Kitty config"
@@ -341,10 +342,10 @@ as_user dbus-run-session -- gsettings set org.gnome.desktop.interface icon-theme
     || print_warn "Could not set icon theme now (hyprland.lua sets it at login)"
 
 ################################################################################
-# 9. SERVICES & AUTO-LOGIN (no login manager)
+# 9. SERVICES & SDDM LOGIN SCREEN
 ################################################################################
 
-print_phase "Services & auto-login"
+print_phase "Services & SDDM"
 
 for svc in bluetooth NetworkManager; do
     if systemctl enable "${svc}.service" > "$LOG_DIR/enable-${svc}.log" 2>&1; then
@@ -354,34 +355,42 @@ for svc in bluetooth NetworkManager; do
     fi
 done
 
-# No login manager any more: make sure a leftover SDDM is not enabled
-systemctl disable sddm.service >/dev/null 2>&1 || true
-
-# Auto-login on tty1 ONLY. tty2 to tty6 (Ctrl+Alt+F2...) keep a normal password
-# login, which is your recovery console if Hyprland ever fails to start.
+# Clean up the old tty1 auto-login setup from earlier versions of this installer,
+# otherwise it would fight SDDM for the session.
 GETTY_OVERRIDE_DIR="/etc/systemd/system/getty@tty1.service.d"
-mkdir -p "$GETTY_OVERRIDE_DIR"
-cat > "$GETTY_OVERRIDE_DIR/override.conf" << EOF
-[Service]
-ExecStart=
-ExecStart=-/usr/bin/agetty --autologin $USER_NAME --noclear %I \$TERM
-EOF
+if [[ -f "$GETTY_OVERRIDE_DIR/override.conf" ]]; then
+    rm -f "$GETTY_OVERRIDE_DIR/override.conf"
+    rmdir "$GETTY_OVERRIDE_DIR" 2>/dev/null || true
+    print_ok "Removed old tty1 auto-login override"
+fi
+if [[ -f "$CONFIG_DIR/fish/conf.d/10-hyprland-autostart.fish" ]]; then
+    rm -f "$CONFIG_DIR/fish/conf.d/10-hyprland-autostart.fish"
+    print_ok "Removed old fish Hyprland autostart"
+fi
 
-# fish is your login shell, so it (not ~/.bash_profile) starts Hyprland on tty1.
-# This is its own file in conf.d, so re-running the installer just rewrites it.
-cat > "$CONFIG_DIR/fish/conf.d/10-hyprland-autostart.fish" << 'EOF'
-# Start Hyprland when logging in on tty1 (written by install.sh)
-if status is-login
-    if test -z "$WAYLAND_DISPLAY"; and test "$XDG_VTNR" = 1
-        if type -q start-hyprland
-            exec start-hyprland
-        else
-            exec Hyprland
-        end
-    end
-end
-EOF
-print_ok "Auto-login on tty1, and fish starts Hyprland"
+# matugen writes the login-screen colours here (sddm-colors.json template), so
+# your user must be able to write to it and SDDM must be able to read it.
+mkdir -p /var/cache/wal
+chown "$USER_NAME:$USER_NAME" /var/cache/wal
+chmod 755 /var/cache/wal
+print_ok "/var/cache/wal ready for matugen's SDDM colours"
+
+# Install the SDDM theme (script + Main.qml live in the repo)
+SDDM_SCRIPT=""
+for candidate in "$REPO_ROOT/install-sddm-theme.sh" "$SCRIPTS_SRC/install-sddm-theme.sh"; do
+    [[ -f "$candidate" ]] && { SDDM_SCRIPT="$candidate"; break; }
+done
+if [[ -n "$SDDM_SCRIPT" ]]; then
+    run_command "bash '$SDDM_SCRIPT'" "Installing the SDDM theme"
+else
+    print_warn "install-sddm-theme.sh not found in the repo. SDDM will use its default theme."
+fi
+
+if systemctl enable sddm.service > "$LOG_DIR/enable-sddm.log" 2>&1; then
+    print_ok "SDDM enabled"
+else
+    print_warn "Could not enable SDDM  →  $LOG_DIR/enable-sddm.log"
+fi
 
 ################################################################################
 # 10. WRAP UP
@@ -402,8 +411,9 @@ print_ok "Ownership set"
 echo ""
 hr
 echo -e "\n    ${BLD}${BGRN}Install complete.${RST}\n"
-echo -e "    ${DIM}After a reboot you go straight into Hyprland, with no login screen.${RST}"
+echo -e "    ${DIM}After a reboot SDDM shows the login screen. Pick the Hyprland session.${RST}"
 echo -e "    ${DIM}Colours and the wallpaper are generated at first login.${RST}"
+echo -e "    ${DIM}Lock screen: hyprlock (bind it in your Hyprland config).${RST}"
 echo -e "    ${DIM}Recovery console if something goes wrong: Ctrl+Alt+F2, then log in.${RST}"
 echo ""
 echo -e "    ${DIM}logs: ${LOG_DIR}${RST}"

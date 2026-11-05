@@ -12,7 +12,7 @@ Item {
   signal toggle(string name)
   property alias popup: card        // shell.qml's focus grab uses this
 
-  implicitWidth: 32
+  implicitWidth: 15
   implicitHeight: 24
 
   readonly property color danger: "#FF5555"

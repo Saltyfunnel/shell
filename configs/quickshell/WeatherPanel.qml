@@ -33,41 +33,51 @@ DashPanel {
         color: Colors.surface
 
         Row {
-          anchors.centerIn: parent
-          spacing: 24
+  anchors.left: parent.left
+  anchors.right: parent.right
+  anchors.margins: 20
+  anchors.verticalCenter: parent.verticalCenter
+  spacing: 16
 
-          Text {
-            text: Weather.icon
-            color: Colors.accent
-            font.family: Theme.font
-            font.pixelSize: 72
-            anchors.verticalCenter: parent.verticalCenter
-          }
-          Column {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 3
-            Text {
-              text: Weather.tempC + "°C"
-              color: Colors.text
-              font.family: Theme.font
-              font.pixelSize: 44
-              font.bold: true
-            }
-            Text {
-              text: Weather.desc + "  ·  feels like " + Weather.feelsC + "°"
-              color: Colors.subtext
-              font.family: Theme.font
-              font.pixelSize: 13
-            }
-            Text {
-              text: Config.weatherTown
-              color: Colors.subtext
-              font.family: Theme.font
-              font.pixelSize: 12
-              opacity: 0.7
-            }
-          }
-        }
+  Text {
+    id: nowIcon
+    text: Weather.icon
+    color: Colors.accent
+    font.family: Theme.font
+    font.pixelSize: 60
+    anchors.verticalCenter: parent.verticalCenter
+  }
+  Column {
+    anchors.verticalCenter: parent.verticalCenter
+    width: parent.width - nowIcon.width - parent.spacing
+    spacing: 3
+
+    Text {
+      text: Weather.tempC + "°C"
+      color: Colors.text
+      font.family: Theme.font
+      font.pixelSize: 40
+      font.bold: true
+    }
+    Text {
+      width: parent.width
+      text: Weather.desc
+      elide: Text.ElideRight
+      color: Colors.subtext
+      font.family: Theme.font
+      font.pixelSize: 13
+    }
+    Text {
+      width: parent.width
+      text: "feels like " + Weather.feelsC + "°  ·  " + Config.weatherTown
+      elide: Text.ElideRight
+      color: Colors.subtext
+      font.family: Theme.font
+      font.pixelSize: 12
+      opacity: 0.7
+    }
+  }
+}
       }
 
       // ----- details card (fills the rest of the column) -----

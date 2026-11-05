@@ -1,6 +1,6 @@
 #!/bin/bash
 ################################################################################
-# Shell installer — Arch Linux + Hyprland + Quickshell + matugen theming
+# Saltyfunnels Shell installer — Arch Linux + Hyprland + Quickshell + matugen theming
 # Login screen: SDDM (matugen-themed).  Lock screen: hyprlock.
 # Run from the repo folder:   sudo bash install.sh
 ################################################################################
@@ -34,7 +34,7 @@ TOTAL_STEPS=10
 IN_RUN=0
 WARNINGS=()
 START_TIME=$SECONDS
-LOG_DIR="/tmp/my-shell-install-logs"
+LOG_DIR="/tmp/saltyfunnels-shell-install-logs"
 mkdir -p "$LOG_DIR"
 
 _cols() { tput cols 2>/dev/null || echo 80; }
@@ -82,7 +82,7 @@ print_phase() {
     local bar="${BCYN}$(repeat "$G_FULL" "$full")${RST}${BBLK}$(repeat "$G_EMPTY" $(( width - full )))${RST}"
     if (( IS_TTY )); then clear; fi
     echo ""
-    echo -e "    ${BLD}${BCYN}my-shell${RST}  ${BBLK}installer${RST}"
+    echo -e "    ${BLD}${BCYN}Saltyfunnels Shell${RST}  ${BBLK}installer${RST}"
     echo ""
     hr
     echo -e "    ${bar}  ${BBLK}$(printf '%3d%%' "$pct")  step ${STEP}/${TOTAL_STEPS}${RST}"
@@ -204,8 +204,8 @@ CARGO_PATH="/usr/local/bin:/usr/bin:/bin:$USER_HOME/.cargo/bin"
 
 clear
 echo ""
-echo -e "    ${BLD}${BCYN}my-shell${RST}"
-echo -e "    ${BBLK}hyprland ${G_DOT} quickshell ${G_DOT} matugen${RST}"
+echo -e "    ${BLD}${BCYN}Saltyfunnels Shell${RST}"
+echo -e "    ${BBLK}served salty ${G_DOT} hyprland ${G_DOT} quickshell ${G_DOT} matugen${RST}"
 echo ""
 hr
 echo -e "    ${BBLK}user${RST}  ${WHT}${USER_NAME}${RST}"

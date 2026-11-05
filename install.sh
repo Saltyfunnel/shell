@@ -1,6 +1,6 @@
 #!/bin/bash
 ################################################################################
-# my-shell installer — Arch Linux + Hyprland + Quickshell + matugen theming
+# Shell installer — Arch Linux + Hyprland + Quickshell + matugen theming
 # Login screen: SDDM (matugen-themed).  Lock screen: hyprlock.
 # Run from the repo folder:   sudo bash install.sh
 ################################################################################

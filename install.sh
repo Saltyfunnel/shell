@@ -138,6 +138,44 @@ deploy() {  # deploy <repo path> <destination> <label>
     fi
 }
 
+# Install LocalSend from the latest GitHub release tarball (no AUR, no Flatpak),
+# and write a .desktop entry whose Icon= points at the real logo file.
+# Runs as root; the ownership fix in the final step hands ~/.local back to you.
+install_localsend() {
+    local dir="$USER_HOME/.local/share/localsend" tmp url bin icon
+    url=$(curl -fsS https://api.github.com/repos/localsend/localsend/releases/latest \
+        | jq -r '.assets[].browser_download_url | select(test("linux-x86-64\\.tar\\.gz$"))' \
+        | head -n1)
+    [[ -n "$url" ]] || { echo "Could not find a LocalSend linux x86-64 tarball in the latest release"; return 1; }
+
+    tmp=$(mktemp -d)
+    curl -fsSL "$url" -o "$tmp/localsend.tar.gz"
+    rm -rf "$dir"; mkdir -p "$dir"
+    tar -xzf "$tmp/localsend.tar.gz" -C "$dir"
+    rm -rf "$tmp"
+
+    # Don't assume the layout: find the binary and a logo wherever they landed
+    bin=$(find "$dir" -maxdepth 3 -type f -name localsend_app | head -n1)
+    [[ -n "$bin" ]] || { echo "localsend_app not found after extracting"; return 1; }
+    chmod +x "$bin"
+
+    icon=$(find "$dir" -type f -iname 'logo-512.png' | head -n1)
+    [[ -n "$icon" ]] || icon=$(find "$dir" -type f -iname '*logo*.png' | head -n1)
+    [[ -n "$icon" ]] || icon="applications-internet"
+
+    mkdir -p "$USER_HOME/.local/share/applications"
+    cat > "$USER_HOME/.local/share/applications/localsend.desktop" << EOF
+[Desktop Entry]
+Name=LocalSend
+Comment=Share files to nearby devices
+Exec=$bin
+Icon=$icon
+Terminal=false
+Type=Application
+Categories=Network;FileTransfer;
+EOF
+}
+
 cleanup() { printf '\e[?25h' 2>/dev/null || true; echo ""; }
 trap cleanup EXIT
 trap '(( IN_RUN )) || echo -e "\n    ${BRED}${G_ERR}  Error on line $LINENO${RST}" >&2' ERR
@@ -270,6 +308,13 @@ if pacman -Si matugen >/dev/null 2>&1; then
 else
     print_info "matugen not in the repos, building with cargo (takes a few minutes)"
     run_command "as_user env PATH='$CARGO_PATH' cargo install matugen --locked" "Building matugen"
+fi
+
+# LocalSend from the GitHub release tarball. run_command exits on failure, so it
+# runs in a subshell here: a failure only warns and doesn't abort the install.
+if ! ( run_command "install_localsend" "Installing LocalSend" ) 2>/dev/null; then
+    IN_RUN=0
+    print_warn "LocalSend install failed, see $LOG_DIR/Installing_LocalSend.log"
 fi
 
 ################################################################################

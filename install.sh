@@ -1,537 +1,381 @@
-#!/bin/bash
-################################################################################
-# Saltyfunnels Shell installer — Arch Linux + Hyprland + Quickshell + matugen theming
-# Login screen: SDDM (matugen-themed).  Lock screen: hyprlock.
-# Run from the repo folder:   sudo bash install.sh
-################################################################################
+#!/usr/bin/env bash
+# install-umbriel-clean.sh
+#
+# Fresh minimal Arch install -> Umbriel compositor + Noctalia v5 desktop shell (with Spicetify).
+# Umbriel is Noctalia's own Wayland compositor (wlroots + SceneFX). It is young (0.1.x),
+# so expect rough edges. For a Hyprland setup use install-noctalia-clean.sh instead.
+# File manager: Thunar.
 
-set -Eeuo pipefail
+set -euo pipefail
 
-################################################################################
-# LOOK & FEEL
-################################################################################
-
-# A fresh install usually runs in the bare Linux console (TERM=linux): 16 colours,
-# and no braille or box-drawing glyphs. So pick a glyph set that always renders.
-if [[ "${TERM:-}" != "linux" && "${LC_ALL:-${LANG:-}}" == *[Uu][Tt][Ff]*8* ]]; then
-    G_OK="✓"; G_ERR="✗"; G_WARN="!"; G_DOT="·"
-    G_FULL="█"; G_EMPTY="░"; G_HR="─"
-    SPIN=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-else
-    G_OK="+"; G_ERR="x"; G_WARN="!"; G_DOT="-"
-    G_FULL="#"; G_EMPTY="-"; G_HR="-"
-    SPIN=('|' '/' '-' '\')
-fi
-
-# Plain 16-colour codes only, so they work everywhere
-RST="\e[0m"; BLD="\e[1m"; DIM="\e[2m"
-WHT="\e[37m"; BBLK="\e[90m"; BRED="\e[91m"; BGRN="\e[92m"
-BYLW="\e[93m"; BMAG="\e[95m"; BCYN="\e[96m"; BWHT="\e[97m"
-
-IS_TTY=0; [[ -t 1 ]] && IS_TTY=1
-STEP=0
-TOTAL_STEPS=10
-IN_RUN=0
-WARNINGS=()
-START_TIME=$SECONDS
-LOG_DIR="/tmp/saltyfunnels-shell-install-logs"
-mkdir -p "$LOG_DIR"
-
-_cols() { tput cols 2>/dev/null || echo 80; }
-
-repeat() {  # repeat <char> <count>
-    local out="" i
-    for (( i = 0; i < $2; i++ )); do out+="$1"; done
-    printf '%s' "$out"
-}
-
-fmt_time() {  # fmt_time <seconds>
-    local s=$1
-    if (( s >= 60 )); then printf '%dm%02ds' $(( s / 60 )) $(( s % 60 )); else printf '%ds' "$s"; fi
-}
-
-hr() { echo -e "${BBLK}$(repeat "$G_HR" "$(( $(_cols) > 60 ? 60 : $(_cols) ))")${RST}"; }
-
-# Animated line with a live elapsed timer. The timer alone shows it hasn't hung,
-# even if a console font renders the spinner glyph badly.
-spinner() {
-    local pid=$1 msg="$2" start=$SECONDS i=0
-    (( IS_TTY )) || return 0
-    msg="${msg:0:$(( $(_cols) - 24 ))}"
-    printf '\e[?25l'
-    while kill -0 "$pid" 2>/dev/null; do
-        printf '\r\e[K    %b%s%b  %s  %b%s%b' "$BCYN" "${SPIN[$i]}" "$RST" "$msg" "$BBLK" "$(fmt_time $(( SECONDS - start )))" "$RST"
-        i=$(( (i + 1) % ${#SPIN[@]} ))
-        sleep 0.1
-    done
-    printf '\r\e[K\e[?25h'
-}
-
-# Status lines are transient: in a terminal they overwrite the current line, so
-# only what's happening right now is visible. Without a TTY (piped/logged) they
-# print as normal lines instead.
-status() {
-    if (( IS_TTY )); then printf '\r\e[K%b' "$1"; else printf '%b\n' "$1"; fi
-}
-
-print_phase() {
-    STEP=$((STEP + 1))
-    local width=30
-    local pct=$(( STEP * 100 / TOTAL_STEPS )); [[ $pct -gt 100 ]] && pct=100
-    local full=$(( STEP * width / TOTAL_STEPS )); [[ $full -gt $width ]] && full=$width
-    local bar="${BCYN}$(repeat "$G_FULL" "$full")${RST}${BBLK}$(repeat "$G_EMPTY" $(( width - full )))${RST}"
-    if (( IS_TTY )); then clear; fi
-    echo ""
-    echo -e "    ${BLD}${BCYN}Saltyfunnels Shell${RST}  ${BBLK}installer${RST}"
-    echo ""
-    hr
-    echo -e "    ${bar}  ${BBLK}$(printf '%3d%%' "$pct")  step ${STEP}/${TOTAL_STEPS}${RST}"
-    echo -e "    ${BLD}${BWHT}$1${RST}"
-    hr
-    echo ""
-}
-
-print_ok() {  # print_ok <msg> [seconds]
-    local t=""
-    [[ -n "${2:-}" && "${2:-0}" -ge 2 ]] && t="  ${BBLK}$(fmt_time "$2")${RST}"
-    status "    ${BGRN}${G_OK}${RST}  $1${t}"
-}
-print_warn() { WARNINGS+=("$1"); status "    ${BYLW}${G_WARN}${RST}  $1"; }
-print_info() { status "    ${BBLK}${G_DOT}  $1${RST}"; }
-print_err()  { printf '\r\e[K' >&2; echo -e "\n    ${BRED}${G_ERR}  ${BLD}$1${RST}\n" >&2; exit 1; }
-
-# Run a command as your normal user (not root), with your HOME set.
-as_user() { sudo -u "$USER_NAME" -H "$@"; }
-
-# Run a command with a live spinner. On success the line is simply replaced by
-# the next task; on failure the end of the log is shown and the script stops.
-run_command() {
-    local cmd="$1" desc="$2" start=$SECONDS
-    local slug; slug=$(echo "$desc" | tr -c 'a-zA-Z0-9\n' '_' | cut -c1-60)
-    local log="$LOG_DIR/${slug}.log"
-
-    IN_RUN=1
-    eval "$cmd" > "$log" 2>&1 &
-    local pid=$!
-    spinner "$pid" "$desc"
-    if ! wait "$pid"; then
-        echo -e "    ${BRED}${G_ERR}${RST}  ${desc}" >&2
-        echo -e "\n    ${BRED}Last lines of the log:${RST}" >&2
-        tail -n 15 "$log" | sed 's/^/      /' >&2
-        print_err "Failed: $desc  ->  $log"
-    fi
-    IN_RUN=0
-    print_ok "$desc" "$(( SECONDS - start ))"
-}
-
-# Copy a folder or a file from the repo into ~/.config if it exists.
-deploy() {  # deploy <repo path> <destination> <label>
-    local src="$1" dest="$2" label="$3"
-    if [[ -d "$src" ]]; then
-        as_user mkdir -p "$dest"
-        run_command "as_user cp -rf '$src/.' '$dest/'" "$label"
-    elif [[ -f "$src" ]]; then
-        as_user mkdir -p "$(dirname "$dest")"
-        run_command "as_user cp -f '$src' '$dest'" "$label"
-    else
-        print_info "skipped $label (not in the repo)"
-    fi
-}
-
-# Install LocalSend from the latest GitHub release tarball (no AUR, no Flatpak),
-# and write a .desktop entry whose Icon= points at the real logo file.
-# Runs as root; the ownership fix in the final step hands ~/.local back to you.
-install_localsend() {
-    local dir="$USER_HOME/.local/share/localsend" tmp url bin icon
-    url=$(curl -fsS https://api.github.com/repos/localsend/localsend/releases/latest \
-        | jq -r '.assets[].browser_download_url | select(test("linux-x86-64\\.tar\\.gz$"))' \
-        | head -n1)
-    [[ -n "$url" ]] || { echo "Could not find a LocalSend linux x86-64 tarball in the latest release"; return 1; }
-
-    tmp=$(mktemp -d)
-    curl -fsSL "$url" -o "$tmp/localsend.tar.gz"
-    rm -rf "$dir"; mkdir -p "$dir"
-    tar -xzf "$tmp/localsend.tar.gz" -C "$dir"
-    rm -rf "$tmp"
-
-    # Don't assume the layout: find the binary and a logo wherever they landed
-    bin=$(find "$dir" -maxdepth 3 -type f -name localsend_app | head -n1)
-    [[ -n "$bin" ]] || { echo "localsend_app not found after extracting"; return 1; }
-    chmod +x "$bin"
-
-    icon=$(find "$dir" -type f -iname 'logo-512.png' | head -n1)
-    [[ -n "$icon" ]] || icon=$(find "$dir" -type f -iname '*logo*.png' | head -n1)
-    [[ -n "$icon" ]] || icon="applications-internet"
-
-    mkdir -p "$USER_HOME/.local/share/applications"
-    cat > "$USER_HOME/.local/share/applications/localsend.desktop" << EOF
-[Desktop Entry]
-Name=LocalSend
-Comment=Share files to nearby devices
-Exec=$bin
-Icon=$icon
-Terminal=false
-Type=Application
-Categories=Network;FileTransfer;
-EOF
-}
-
-cleanup() { printf '\e[?25h' 2>/dev/null || true; echo ""; }
-trap cleanup EXIT
-trap '(( IN_RUN )) || echo -e "\n    ${BRED}${G_ERR}  Error on line $LINENO${RST}" >&2' ERR
-
-################################################################################
-# PRE-FLIGHT CHECKS
-################################################################################
-
-[[ "$EUID" -eq 0 ]] || { echo "Run as root  →  sudo bash $0" >&2; exit 1; }
-[[ -f /etc/arch-release ]] || { echo "This installer is for Arch Linux only." >&2; exit 1; }
-
-USER_NAME="${SUDO_USER:-}"
-if [[ -z "$USER_NAME" || "$USER_NAME" == "root" ]]; then
-    echo "Run with sudo from your normal user account (not a root login)." >&2
+if [[ $EUID -eq 0 ]]; then
+    echo "Run this as your normal user, not root." >&2
     exit 1
 fi
-USER_HOME="$(getent passwd "$USER_NAME" | cut -d: -f6)"
-[[ -d "$USER_HOME" ]] || { echo "Home directory for $USER_NAME not found." >&2; exit 1; }
 
-CONFIG_DIR="$USER_HOME/.config"
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIGS_SRC="$REPO_ROOT/configs"
-SCRIPTS_SRC="$REPO_ROOT/scripts"
-WALLPAPERS_REPO="https://github.com/Saltyfunnel/Wallpapers.git"
-CARGO_PATH="/usr/local/bin:/usr/bin:/bin:$USER_HOME/.cargo/bin"
+BUILD_DIR="$HOME/.cache/noctalia-install"
+mkdir -p "$BUILD_DIR"
 
-clear
-echo ""
-echo -e "    ${BLD}${BCYN}Saltyfunnels Shell${RST}"
-echo -e "    ${BBLK}served salty ${G_DOT} hyprland ${G_DOT} quickshell ${G_DOT} matugen${RST}"
-echo ""
-hr
-echo -e "    ${BBLK}user${RST}  ${WHT}${USER_NAME}${RST}"
-echo -e "    ${BBLK}repo${RST}  ${WHT}${REPO_ROOT}${RST}"
-echo -e "    ${BBLK}logs${RST}  ${WHT}${LOG_DIR}${RST}"
-hr
-echo ""
+CONFIRM="--noconfirm"
+[[ "${REVIEW:-0}" == "1" ]] && CONFIRM=""
 
-curl -fsS --max-time 10 -o /dev/null https://archlinux.org || print_err "No network connection"
-print_ok "Network reachable"
+echo "==> pacman.conf tweaks (Color, ParallelDownloads, ILoveCandy, multilib for Steam)"
+sudo sed -i 's/^#Color/Color/; s/^#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.conf
+grep -q '^ILoveCandy' /etc/pacman.conf || sudo sed -i '/^\[options\]/a ILoveCandy' /etc/pacman.conf
+sudo sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' /etc/pacman.conf
 
-################################################################################
-# 1. PACMAN CONFIG
-################################################################################
+echo "==> Full system update"
+sudo pacman -Syu --noconfirm
 
-print_phase "Configuring pacman"
+echo "==> Base build tools"
+sudo pacman -S --needed --noconfirm base-devel git go pciutils
 
-sed -i 's/^#Color/Color/' /etc/pacman.conf
-sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' /etc/pacman.conf
-if grep -q "^#ILoveCandy" /etc/pacman.conf; then
-    sed -i 's/^#ILoveCandy/ILoveCandy/' /etc/pacman.conf
-elif ! grep -q "^ILoveCandy" /etc/pacman.conf; then
-    sed -i '/^\[options\]/a ILoveCandy' /etc/pacman.conf
-fi
-# multilib is needed for Steam
-sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' /etc/pacman.conf
-grep -q '^\[multilib\]' /etc/pacman.conf || print_err "Could not enable [multilib] in /etc/pacman.conf"
-print_ok "pacman.conf updated (multilib, Color, ParallelDownloads)"
-
-################################################################################
-# 2. SYSTEM UPDATE & GPU DRIVERS
-################################################################################
-
-print_phase "System update & graphics drivers"
-
-run_command "pacman -Syu --noconfirm" "Updating the system"
-
-GPU_INFO=$(lspci | grep -Ei "VGA|3D" || true)
-
-if echo "$GPU_INFO" | grep -qi nvidia; then
-    print_info "NVIDIA GPU detected"
-    run_command "pacman -S --noconfirm --needed nvidia-open-dkms nvidia-utils lib32-nvidia-utils linux-headers" \
-        "Installing NVIDIA drivers"
-elif echo "$GPU_INFO" | grep -qi amd; then
-    print_info "AMD GPU detected"
-    run_command "pacman -S --noconfirm --needed mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon" \
-        "Installing AMD drivers"
-elif echo "$GPU_INFO" | grep -qi intel; then
-    print_info "Intel GPU detected"
-    run_command "pacman -S --noconfirm --needed mesa lib32-mesa vulkan-intel lib32-vulkan-intel" \
-        "Installing Intel drivers"
-else
-    print_warn "No known GPU found, skipping drivers"
+if ! command -v yay &>/dev/null; then
+    echo "==> Bootstrapping yay from source"
+    rm -rf "$BUILD_DIR/yay"
+    git clone --depth=1 https://aur.archlinux.org/yay.git "$BUILD_DIR/yay"
+    (cd "$BUILD_DIR/yay" && makepkg -si --noconfirm)
 fi
 
-################################################################################
-# 3. PACKAGES
-################################################################################
-
-print_phase "Installing packages"
-
-CORE=(hyprland hyprpaper xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
-      polkit-kde-agent qt6-5compat qt6-declarative qt6-svg qt5-wayland qt6-wayland
-      mako)
-LOGIN=(sddm hyprlock)
-AUDIO=(pipewire pipewire-pulse pipewire-alsa wireplumber playerctl pavucontrol)
-TERMINAL=(kitty fish starship fastfetch btop)
-UTILITY=(grim slurp wl-clipboard brightnessctl pacman-contrib wf-recorder upower libnotify
-         bluez bluez-utils blueman networkmanager udisks2 udiskie gvfs
-         gtk3 libayatana-appindicator)
-FILES=(thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller trash-cli)
-MEDIA=(mpv imv ffmpeg yt-dlp cava)
-SETTINGS=(dconf gsettings-desktop-schemas)
-APPS=(firefox spotify-launcher qbittorrent gnome-disk-utility zed)
-GAMING=(steam gamemode lib32-gamemode mangohud lib32-mangohud)
-DEV=(git base-devel curl wget nano jq rust)
-FONTS=(ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji)
-DISK=(ntfs-3g dosfstools unzip p7zip unrar)
-
-ALL_PACKAGES=("${CORE[@]}" "${LOGIN[@]}" "${AUDIO[@]}" "${TERMINAL[@]}" "${UTILITY[@]}" "${FILES[@]}"
-              "${MEDIA[@]}" "${SETTINGS[@]}" "${APPS[@]}" "${GAMING[@]}" "${DEV[@]}" "${FONTS[@]}" "${DISK[@]}")
-
-run_command "pacman -S --noconfirm --needed ${ALL_PACKAGES[*]}" \
-    "Installing ${#ALL_PACKAGES[@]} packages"
-
-################################################################################
-# 4. QUICKSHELL, MATUGEN & LOCALSEND
-################################################################################
-
-print_phase "Quickshell, matugen & LocalSend"
-
-if pacman -Si quickshell >/dev/null 2>&1; then
-    run_command "pacman -S --noconfirm --needed quickshell" "Installing Quickshell"
-else
-    print_warn "quickshell is not in the official repos. After this script finishes run:  yay -S quickshell"
-fi
-
-if pacman -Si matugen >/dev/null 2>&1; then
-    run_command "pacman -S --noconfirm --needed matugen" "Installing matugen"
-else
-    print_info "matugen not in the repos, building with cargo (takes a few minutes)"
-    run_command "as_user env PATH='$CARGO_PATH' cargo install matugen --locked" "Building matugen"
-fi
-
-# LocalSend from the GitHub release tarball. run_command exits on failure, so it
-# runs in a subshell here: a failure only warns and doesn't abort the install.
-if ! ( run_command "install_localsend" "Installing LocalSend" ) 2>/dev/null; then
-    IN_RUN=0
-    print_warn "LocalSend install failed, see $LOG_DIR/Installing_LocalSend.log"
-fi
-
-################################################################################
-# 5. FOLDERS
-################################################################################
-
-print_phase "Creating folders"
-
-for d in hypr kitty fish fish/conf.d mako scripts quickshell matugen/templates gtk-3.0 gtk-4.0 Thunar fastfetch zed/themes; do
-    as_user mkdir -p "$CONFIG_DIR/$d"
-done
-as_user mkdir -p "$USER_HOME/Pictures/Wallpapers" "$USER_HOME/.local/share/icons" "$USER_HOME/.cache"
-print_ok "Folders created"
-
-################################################################################
-# 6. CONFIG FILES (copied from this repo)
-################################################################################
-
-print_phase "Deploying config files"
-
-deploy "$CONFIGS_SRC/hypr"        "$CONFIG_DIR/hypr"        "Hyprland config (incl. hyprlock)"
-deploy "$CONFIGS_SRC/quickshell"  "$CONFIG_DIR/quickshell"  "Quickshell bar"
-deploy "$CONFIGS_SRC/matugen"     "$CONFIG_DIR/matugen"     "matugen config & templates"
-deploy "$CONFIGS_SRC/kitty"       "$CONFIG_DIR/kitty"       "Kitty config"
-deploy "$CONFIGS_SRC/fish"        "$CONFIG_DIR/fish"        "Fish config"
-deploy "$CONFIGS_SRC/mako"        "$CONFIG_DIR/mako"        "Mako config"
-deploy "$CONFIGS_SRC/fastfetch"   "$CONFIG_DIR/fastfetch"   "Fastfetch config"
-deploy "$CONFIGS_SRC/starship"    "$CONFIG_DIR"             "Starship config"
-deploy "$CONFIGS_SRC/gtk-3.0"     "$CONFIG_DIR/gtk-3.0"     "GTK 3 config"
-deploy "$CONFIGS_SRC/gtk-4.0"     "$CONFIG_DIR/gtk-4.0"     "GTK 4 config"
-deploy "$CONFIGS_SRC/Thunar"      "$CONFIG_DIR/Thunar"      "Thunar config"
-deploy "$SCRIPTS_SRC"             "$CONFIG_DIR/scripts"     "User scripts"
-as_user find "$CONFIG_DIR/scripts" -type f -exec chmod +x {} + 2>/dev/null || true
-as_user touch "$CONFIG_DIR/kitty/colors.conf"
-
-# GPU environment file (hyprland.lua loads this at startup, so it must exist)
-GPU_ENV_FILE="$CONFIG_DIR/hypr/gpu-env.lua"
-if echo "$GPU_INFO" | grep -qi nvidia; then
-    cat > "$GPU_ENV_FILE" << 'EOF'
--- GPU environment, auto-generated by install.sh
-return {
-  LIBVA_DRIVER_NAME         = "nvidia",
-  XDG_SESSION_TYPE          = "wayland",
-  __GLX_VENDOR_LIBRARY_NAME = "nvidia",
-  GBM_BACKEND               = "nvidia-drm",
-  WLR_NO_HARDWARE_CURSORS   = "1",
-  __GL_GSYNC_ALLOWED        = "1",
-  __GL_VRR_ALLOWED          = "1",
-  QT_QPA_PLATFORM           = "wayland",
+install_pkg() {
+    yay -S --needed $CONFIRM "$@"
 }
-EOF
-elif echo "$GPU_INFO" | grep -qi amd; then
-    cat > "$GPU_ENV_FILE" << 'EOF'
--- GPU environment, auto-generated by install.sh
-return {
-  LIBVA_DRIVER_NAME = "radeonsi",
-  XDG_SESSION_TYPE  = "wayland",
-  QT_QPA_PLATFORM   = "wayland",
-}
-EOF
-elif echo "$GPU_INFO" | grep -qi intel; then
-    cat > "$GPU_ENV_FILE" << 'EOF'
--- GPU environment, auto-generated by install.sh
-return {
-  LIBVA_DRIVER_NAME = "iHD",
-  XDG_SESSION_TYPE  = "wayland",
-  QT_QPA_PLATFORM   = "wayland",
-}
-EOF
-else
-    cat > "$GPU_ENV_FILE" << 'EOF'
--- GPU environment, auto-generated by install.sh
-return {
-  XDG_SESSION_TYPE = "wayland",
-  QT_QPA_PLATFORM  = "wayland",
-}
-EOF
-fi
-print_ok "GPU environment written  →  hypr/gpu-env.lua"
 
-################################################################################
-# 7. WALLPAPERS & DEFAULT SHELL
-################################################################################
-
-print_phase "Wallpapers & fish shell"
-
-WALLPAPER_TMP="/tmp/wallpapers-src"
-rm -rf "$WALLPAPER_TMP"
-run_command "as_user git clone --depth 1 '$WALLPAPERS_REPO' '$WALLPAPER_TMP'" "Cloning wallpapers"
-run_command "as_user cp -rf '$WALLPAPER_TMP/.' '$USER_HOME/Pictures/Wallpapers/' && rm -rf '$USER_HOME/Pictures/Wallpapers/.git'" \
-    "Copying wallpapers to ~/Pictures/Wallpapers"
-rm -rf "$WALLPAPER_TMP"
-
-if chsh -s /usr/bin/fish "$USER_NAME"; then
-    print_ok "fish set as your default shell"
-else
-    print_warn "Could not change shell. Run later:  chsh -s /usr/bin/fish"
-fi
-
-################################################################################
-# 8. ICONS
-################################################################################
-
-print_phase "Colloid icon theme"
-
-COLLOID_SRC="$CONFIG_DIR/colloid-src"
-if [[ ! -d "$COLLOID_SRC" ]]; then
-    run_command "as_user git clone --depth 1 https://github.com/Saltyfunnel/colloid.git '$COLLOID_SRC'" \
-        "Cloning Colloid icon theme"
-fi
-run_command "cd '$COLLOID_SRC' && as_user ./install.sh -d '$USER_HOME/.local/share/icons' -n Colloid-Dynamic -s default" \
-    "Installing Colloid-Dynamic icons"
-rm -f "$USER_HOME/.cache/folder_accent"
-
-as_user dbus-run-session -- gsettings set org.gnome.desktop.interface icon-theme 'Colloid-Dynamic-Dark' \
-    > "$LOG_DIR/gsettings.log" 2>&1 \
-    && print_ok "Icon theme set for GTK apps" \
-    || print_warn "Could not set icon theme now (hyprland.lua sets it at login)"
-
-################################################################################
-# 9. SERVICES & SDDM LOGIN SCREEN
-################################################################################
-
-print_phase "Services & SDDM"
-
-for svc in bluetooth NetworkManager; do
-    if systemctl enable "${svc}.service" > "$LOG_DIR/enable-${svc}.log" 2>&1; then
-        print_ok "${svc} enabled"
-    else
-        print_warn "Could not enable ${svc}  →  $LOG_DIR/enable-${svc}.log"
+# --- 1. GPU detection ---
+detect_gpu() {
+    local info
+    info="$(lspci -nn | grep -Ei 'vga|3d|display' || true)"
+    if grep -qi 'nvidia' <<<"$info"; then echo nvidia
+    elif grep -Eqi 'amd|ati|radeon' <<<"$info"; then echo amd
+    elif grep -qi 'intel' <<<"$info"; then echo intel
+    else echo none
     fi
-done
+}
 
-# Clean up the old tty1 auto-login setup from earlier versions of this installer,
-# otherwise it would fight SDDM for the session.
-GETTY_OVERRIDE_DIR="/etc/systemd/system/getty@tty1.service.d"
-if [[ -f "$GETTY_OVERRIDE_DIR/override.conf" ]]; then
-    rm -f "$GETTY_OVERRIDE_DIR/override.conf"
-    rmdir "$GETTY_OVERRIDE_DIR" 2>/dev/null || true
-    print_ok "Removed old tty1 auto-login override"
+GPU="${GPU:-$(detect_gpu)}"
+echo "==> GPU: $GPU"
+
+GPU_PKGS=(mesa)
+case "$GPU" in
+    amd)    GPU_PKGS+=(vulkan-radeon lib32-mesa lib32-vulkan-radeon) ;;
+    nvidia) GPU_PKGS+=(nvidia-open-dkms nvidia-utils lib32-nvidia-utils libva-nvidia-driver linux-headers) ;;
+    intel)  GPU_PKGS+=(vulkan-intel lib32-mesa lib32-vulkan-intel intel-media-driver) ;;
+    none)   echo "    No GPU matched, installing mesa only." ;;
+esac
+
+# --- 2. Umbriel + Portals + Kitty ---
+# NOTE: the AUR package "umbriel" is a placeholder. The real one is umbriel-git.
+# xwayland-satellite provides X11 app support (Steam needs it).
+# xdg-desktop-portal-umbriel-git was a placeholder when this was written, so
+# portal-wlr is used for screen capture (untested with Umbriel).
+echo "==> Umbriel, portals, terminal (Kitty), graphics"
+install_pkg umbriel-git xwayland-satellite \
+    xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr \
+    "${GPU_PKGS[@]}" \
+    kitty \
+    ttf-jetbrains-mono-nerd
+
+# --- 3. Core Shell Tools & Utilities ---
+echo "==> Core apps and system utilities"
+install_pkg fish eza zoxide direnv \
+    fastfetch \
+    btop \
+    ffmpeg 7zip fd fzf imagemagick \
+    thunar thunar-archive-plugin thunar-volman gvfs tumbler ffmpegthumbnailer file-roller \
+    udiskie udisks2 \
+    starship \
+    adw-gtk-theme papirus-icon-theme \
+    qt6ct nwg-look \
+    gnome-keyring polkit-gnome \
+    networkmanager \
+    bluez bluez-utils \
+    pipewire pipewire-pulse pipewire-audio pipewire-alsa pipewire-jack wireplumber pavucontrol \
+    wl-clipboard cliphist \
+    noto-fonts noto-fonts-cjk noto-fonts-emoji \
+    curl trash-cli jq lazygit bat ripgrep xdg-user-dirs libnotify grim slurp
+
+echo "==> Apps"
+install_pkg mpv imv qbittorrent libreoffice-fresh zed \
+    steam gnome-disk-utility ntfs-3g dosfstools \
+    localsend-bin
+
+echo "==> Login manager"
+install_pkg sddm xorg-server
+
+# --- 4. Noctalia v5 ---
+# noctalia-git pulls in its own runtime deps and lists the optional ones.
+echo "==> Noctalia"
+install_pkg noctalia-git \
+    brightnessctl ddcutil lm_sensors power-profiles-daemon \
+    swappy
+
+# --- 5. Config ---
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+
+# Umbriel runs as a user service and imports variables from environment.d,
+# so the Qt theme platform goes here instead of in the compositor config.
+mkdir -p "$XDG_CONFIG_HOME/environment.d"
+if [[ ! -f "$XDG_CONFIG_HOME/environment.d/qt.conf" ]]; then
+    echo 'QT_QPA_PLATFORMTHEME=qt6ct' > "$XDG_CONFIG_HOME/environment.d/qt.conf"
 fi
-if [[ -f "$CONFIG_DIR/fish/conf.d/10-hyprland-autostart.fish" ]]; then
-    rm -f "$CONFIG_DIR/fish/conf.d/10-hyprland-autostart.fish"
-    print_ok "Removed old fish Hyprland autostart"
+
+# Starter Umbriel config. Only written if you don't have one.
+# Once this file exists, [keybinds] is the COMPLETE set (defaults only load
+# when there is no config), so extend it by hand afterwards.
+mkdir -p "$XDG_CONFIG_HOME/umbriel"
+# Re-running on an existing install? FORCE_CONFIG=1 backs up the old config and rewrites it.
+if [[ "${FORCE_CONFIG:-0}" == "1" && -f "$XDG_CONFIG_HOME/umbriel/config.toml" ]]; then
+    mv "$XDG_CONFIG_HOME/umbriel/config.toml" "$XDG_CONFIG_HOME/umbriel/config.toml.bak"
+    echo "    Backed up old Umbriel config to config.toml.bak"
+fi
+if [[ ! -f "$XDG_CONFIG_HOME/umbriel/config.toml" ]]; then
+    cat > "$XDG_CONFIG_HOME/umbriel/config.toml" <<'EOF'
+[general]
+autostart = [
+    "noctalia",
+    "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1",
+    "udiskie",
+]
+
+[appearance]
+prefer_no_csd = true
+border_width = 2
+corner_radius = 10
+
+[appearance.blur]
+enabled = true
+optimized = true
+passes = 3
+radius = 3
+noise = 0.02
+brightness = 0.9
+contrast = 0.9
+saturation = 1.1
+
+# Float Noctalia's settings window
+[[window_rule]]
+match.app_id = "^dev.noctalia.Noctalia$"
+default_floating = true
+default_size = [1020, 900]
+
+# Blur for Noctalia's bar, panels, notifications, dock and OSD
+[[layer_rule]]
+match.namespace = "^noctalia-(bar-[^\"]+|notification|dock|panel|attached-panel|osd)$"
+blur = true
+blur_ignore_alpha = 0.5
+blur_optimized = false
+
+[keybinds]
+# Apps
+"Mod" = "spawn noctalia msg panel-toggle launcher"
+"Mod+Space" = "spawn noctalia msg panel-toggle launcher"
+"Mod+Return" = { action = "spawn kitty", repeat = false }
+"Mod+E" = "spawn thunar"
+"Mod+B" = "spawn zen-browser"
+"Mod+C" = "spawn zeditor"
+"Mod+S" = "spawn spotify"
+"Mod+V" = "spawn noctalia msg panel-toggle clipboard"
+"Mod+W" = "spawn noctalia msg panel-toggle wallpaper"
+"Mod+P" = "spawn noctalia msg screenshot-region"
+
+# Session / windows
+"Mod+Q" = { action = "window-close", repeat = false }
+"Mod+Shift+Q" = { action = "window-kill", repeat = false }
+"Mod+Escape" = "spawn noctalia msg panel-toggle session"
+"Mod+Shift+Escape" = { action = "shortcuts-inhibit-toggle", allow_when_inhibited = true, repeat = false }
+"Mod+Ctrl+Escape" = "session-quit"
+"Mod+F" = "window-toggle-fullscreen"
+"Mod+T" = "window-toggle-floating"
+"Mod+Shift+P" = "window-toggle-pinned"
+"Mod+Tab" = "window-focus-last"
+"Alt+Tab" = "window-focus-last"
+
+# Focus
+"Mod+H" = "window-focus-left"
+"Mod+L" = "window-focus-right"
+"Mod+J" = "window-focus-down"
+"Mod+K" = "window-focus-up"
+"Mod+Left" = "window-focus-left"
+"Mod+Right" = "window-focus-right"
+"Mod+Down" = "window-focus-down"
+"Mod+Up" = "window-focus-up"
+
+# Move
+"Mod+Shift+H" = "window-move-left"
+"Mod+Shift+L" = "window-move-right"
+"Mod+Shift+J" = "window-move-down"
+"Mod+Shift+K" = "window-move-up"
+"Mod+Shift+Left" = "column-move-left"
+"Mod+Shift+Right" = "column-move-right"
+"Mod+Comma" = "window-consume-left"
+"Mod+Period" = "window-consume-right"
+
+# Size
+"Mod+R" = "window-cycle-primary-extent"
+"Mod+Shift+R" = "window-cycle-primary-extent-back"
+"Mod+Minus" = "window-modify-primary-extent -0.02"
+"Mod+Equal" = "window-modify-primary-extent +0.02"
+
+# Overview / workspaces
+"Mod+O" = { action = "overview-toggle", repeat = false }
+"Mod+I" = { action = "overview-toggle", repeat = false }
+"Mod+1" = "workspace-switch 1"
+"Mod+2" = "workspace-switch 2"
+"Mod+3" = "workspace-switch 3"
+"Mod+4" = "workspace-switch 4"
+"Mod+5" = "workspace-switch 5"
+"Mod+6" = "workspace-switch 6"
+"Mod+7" = "workspace-switch 7"
+"Mod+8" = "workspace-switch 8"
+"Mod+9" = "workspace-switch 9"
+"Mod+Shift+1" = "window-move-to-workspace 1"
+"Mod+Shift+2" = "window-move-to-workspace 2"
+"Mod+Shift+3" = "window-move-to-workspace 3"
+"Mod+Shift+4" = "window-move-to-workspace 4"
+"Mod+Shift+5" = "window-move-to-workspace 5"
+"Mod+Shift+6" = "window-move-to-workspace 6"
+"Mod+Shift+7" = "window-move-to-workspace 7"
+"Mod+Shift+8" = "window-move-to-workspace 8"
+"Mod+Shift+9" = "window-move-to-workspace 9"
+"Mod+WheelUp" = { action = "workspace-previous", cooldown_ms = 150 }
+"Mod+WheelDown" = { action = "workspace-next", cooldown_ms = 150 }
+"Mod+MouseMiddle" = "layout-scroll-drag"
+
+# Media / brightness (through Noctalia so the OSDs show)
+"XF86AudioRaiseVolume" = { action = "spawn noctalia msg volume-up", allow_when_locked = true }
+"XF86AudioLowerVolume" = { action = "spawn noctalia msg volume-down", allow_when_locked = true }
+"XF86AudioMute" = { action = "spawn noctalia msg volume-mute", allow_when_locked = true, repeat = false }
+"XF86AudioPlay" = { action = "spawn noctalia msg media toggle", allow_when_locked = true, repeat = false }
+"XF86AudioNext" = { action = "spawn noctalia msg media next", allow_when_locked = true }
+"XF86AudioPrev" = { action = "spawn noctalia msg media previous", allow_when_locked = true }
+"XF86MonBrightnessUp" = { action = "spawn noctalia msg brightness-up", allow_when_locked = true }
+"XF86MonBrightnessDown" = { action = "spawn noctalia msg brightness-down", allow_when_locked = true }
+EOF
 fi
 
-# matugen writes the login-screen colours here (sddm-colors.json template), so
-# your user must be able to write to it and SDDM must be able to read it.
-mkdir -p /var/cache/wal
-chown "$USER_NAME:$USER_NAME" /var/cache/wal
-chmod 755 /var/cache/wal
-print_ok "/var/cache/wal ready for matugen's SDDM colours"
+# Minimal fish config (only if you don't already have one)
+mkdir -p "$XDG_CONFIG_HOME/fish"
+if [[ ! -f "$XDG_CONFIG_HOME/fish/config.fish" ]]; then
+    cat > "$XDG_CONFIG_HOME/fish/config.fish" <<'EOF'
+if status is-interactive
+    starship init fish | source
+    zoxide init fish | source
+    direnv hook fish | source
+    alias ls 'eza --icons'
+end
+EOF
+fi
 
-# Install the SDDM theme (script + Main.qml live in the repo)
-SDDM_SCRIPT=""
-for candidate in "$SCRIPTS_SRC/install-sddm-theme.sh" "$SCRIPTS_SRC/sddmtheme.sh" \
-                 "$REPO_ROOT/install-sddm-theme.sh"; do
-    [[ -f "$candidate" ]] && { SDDM_SCRIPT="$candidate"; break; }
-done
-if [[ ! -f "$REPO_ROOT/configs/sddm/Main.qml" ]]; then
-    print_warn "configs/sddm/Main.qml is missing from the repo, skipping the SDDM theme (default theme will be used)"
-elif [[ -n "$SDDM_SCRIPT" ]]; then
-    run_command "env REPO_ROOT='$REPO_ROOT' bash '$SDDM_SCRIPT'" "Installing the SDDM theme"
+# Thunar custom action: right-click a folder -> Open Kitty Here
+mkdir -p "$XDG_CONFIG_HOME/Thunar"
+if [[ ! -f "$XDG_CONFIG_HOME/Thunar/uca.xml" ]]; then
+    cat > "$XDG_CONFIG_HOME/Thunar/uca.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<actions>
+<action>
+    <icon>kitty</icon>
+    <name>Open Kitty Here</name>
+    <unique-id>kitty-open-here</unique-id>
+    <command>kitty --directory %f</command>
+    <description>Open Kitty terminal in this directory</description>
+    <patterns>*</patterns>
+    <directories/>
+</action>
+</actions>
+EOF
+fi
+
+mkdir -p "$XDG_CONFIG_HOME/fish/functions"
+
+# Silence the fish welcome message (an empty fish_greeting function overrides
+# the default, even if the copied config sets the variable).
+cat > "$XDG_CONFIG_HOME/fish/functions/fish_greeting.fish" <<'EOF'
+function fish_greeting
+end
+EOF
+
+# --- 6. Wallpapers ---
+WALLPAPER_REPO="${WALLPAPER_REPO:-https://github.com/Saltyfunnel/Wallpapers.git}"
+WALLPAPER_SRC="$HOME/.local/share/wallpapers"
+WALLPAPER_DEST="$HOME/Pictures/Wallpapers"
+
+echo "==> Wallpapers"
+if [[ ! -d "$WALLPAPER_SRC/.git" ]]; then
+    git clone --depth=1 "$WALLPAPER_REPO" "$WALLPAPER_SRC" || true
+fi
+
+if [[ -d "$WALLPAPER_SRC" ]]; then
+    mkdir -p "$WALLPAPER_DEST"
+    (
+        cd "$WALLPAPER_SRC"
+        find . -path ./.git -prune -o -type f \
+            \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) -print0 \
+            | xargs -0 -r cp --update=none --parents -t "$WALLPAPER_DEST"
+    )
+fi
+
+# --- 7. Browser & Media ---
+echo "==> Zen Browser"
+install_pkg zen-browser-bin
+xdg-settings set default-web-browser zen.desktop 2>/dev/null || true
+
+echo "==> Spotify + Spicetify"
+if install_pkg spotify spicetify-cli; then
+    sudo chmod a+wr /opt/spotify
+    sudo chmod -R a+wr /opt/spotify/Apps
+
+    mkdir -p "$XDG_CONFIG_HOME/spotify"
+    [[ -e "$XDG_CONFIG_HOME/spotify/prefs" ]] || touch "$XDG_CONFIG_HOME/spotify/prefs"
+
+    spicetify backup apply \
+        || echo "    WARN: spicetify apply failed. Launch Spotify once, then run 'spicetify backup apply'."
 else
-    print_warn "SDDM theme script not found in scripts/. SDDM will use its default theme."
+    echo "    WARN: Spotify or Spicetify installation failed."
 fi
 
-if systemctl enable sddm.service > "$LOG_DIR/enable-sddm.log" 2>&1; then
-    print_ok "SDDM enabled"
-else
-    print_warn "Could not enable SDDM  →  $LOG_DIR/enable-sddm.log"
+# --- 8. GTK / icon theme defaults + file manager ---
+echo "==> GTK / icon theme defaults"
+# These can fail from a TTY with no D-Bus session; if so, run them once after first login.
+gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3' \
+    || echo "    WARN: gsettings failed. After first login run the gsettings lines in this script."
+ICON_THEME='Papirus-Dark'
+gsettings set org.gnome.desktop.interface icon-theme "$ICON_THEME" || true
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' || true
+xdg-mime default thunar.desktop inode/directory || true
+
+# --- 9. Services ---
+echo "==> Enabling system services"
+sudo systemctl enable --now NetworkManager
+sudo systemctl enable --now bluetooth
+sudo systemctl enable --now power-profiles-daemon
+sudo systemctl enable sddm
+
+# --- 10. Shell Default ---
+if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "/usr/bin/fish" ]]; then
+    echo "==> Setting fish as default shell"
+    chsh -s /usr/bin/fish
 fi
 
-################################################################################
-# 10. WRAP UP
-################################################################################
+xdg-user-dirs-update
 
-print_phase "Finalizing installation"
-
-# Hand ownership of your files back to you
-for p in "$CONFIG_DIR" "$USER_HOME/.cache" "$USER_HOME/Pictures" "$USER_HOME/.local"; do
-    [[ -e "$p" ]] && chown -R "$USER_NAME:$USER_NAME" "$p"
-done
-print_ok "Ownership set"
-
-################################################################################
-# DONE
-################################################################################
-
-if (( IS_TTY )); then clear; fi
-echo ""
-hr
-echo ""
-echo -e "    ${BLD}${BGRN}${G_OK}  Install complete${RST}  ${BBLK}in $(fmt_time $(( SECONDS - START_TIME )))${RST}"
-echo ""
-echo -e "    ${BWHT}Next${RST}"
-echo -e "    ${BBLK}${G_DOT}${RST}  Reboot, then pick the ${BCYN}Hyprland${RST} session at the login screen"
-echo -e "    ${BBLK}${G_DOT}${RST}  Colours and wallpaper are generated at first login"
-echo -e "    ${BBLK}${G_DOT}${RST}  Lock screen is hyprlock (bind it in your Hyprland config)"
-echo -e "    ${BBLK}${G_DOT}${RST}  If something goes wrong: ${BCYN}Ctrl+Alt+F2${RST}, then log in"
-
-if (( ${#WARNINGS[@]} > 0 )); then
-    echo ""
-    echo -e "    ${BYLW}${G_WARN}  ${#WARNINGS[@]} thing(s) to look at${RST}"
-    for w in "${WARNINGS[@]}"; do
-        echo -e "      ${BBLK}${G_DOT}${RST} $w"
-    done
+# --- 11. Sanity check: did umbriel-git register a login session? ---
+if ! ls /usr/share/wayland-sessions 2>/dev/null | grep -qi umbriel; then
+    echo
+    echo "    WARN: no Umbriel entry in /usr/share/wayland-sessions."
+    echo "    SDDM won't list it until a umbriel.desktop session file exists."
 fi
 
-echo ""
-echo -e "    ${BBLK}logs: ${LOG_DIR}${RST}"
-echo ""
-hr
-echo ""
-
-read -r -p "    $(echo -e "${BCYN}Reboot now? [Y/n]:${RST} ")" REBOOT_CHOICE
-REBOOT_CHOICE=${REBOOT_CHOICE:-Y}
-if [[ "$REBOOT_CHOICE" =~ ^[Yy]$ ]]; then
-    reboot
-fi
+echo
+echo "==> Installation complete! Reboot, select Umbriel in SDDM, and Noctalia starts with the session."
+echo
+echo "Keybinds in the starter config: Super+Return terminal, Super+E Thunar, Super+B Zen,"
+echo "Super+C Zed, Super+S Spotify, Super (tap) or Super+Space launcher, Super+O overview,"
+echo "Super+H/J/K/L focus, Super+1..9 workspaces, Super+F fullscreen, Super+Q close,"
+echo "Super+Escape power menu, Super+Ctrl+Escape quit session."
+echo "Add the rest in ~/.config/umbriel/config.toml (run 'umbriel msg --help' for actions)."
+echo
+echo "After first login:"
+echo "  - Noctalia Settings -> Color Scheme -> Templates: toggle on GTK, Qt and Papirus icons"
+echo "  - Noctalia Settings -> Umbriel -> Overview: enable type-to-launch if you want it"
+echo "  - qt6ct: Color Scheme tab -> pick 'noctalia' -> Apply; Icon Theme tab -> Papirus-Dark"
+echo "  - Fully restart Thunar so it picks up the theme"

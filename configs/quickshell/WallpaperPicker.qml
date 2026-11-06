@@ -314,6 +314,35 @@ Item {
         preferredHighlightEnd: width / 2 + 120
         highlightMoveDuration: 220
 
+         interactive: false          // we drive currentIndex ourselves (wheel + drag below)
+
+        // mouse wheel / touchpad over the strip
+        WheelHandler {
+          property real acc: 0
+          acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+          onWheel: event => {
+            const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
+            acc += delta
+            while (acc >= 120)  { strip.decrementCurrentIndex(); acc -= 120 }
+            while (acc <= -120) { strip.incrementCurrentIndex(); acc += 120 }
+            event.accepted = true
+          }
+        }
+
+        // click and drag along the strip
+        DragHandler {
+          id: stripDrag
+          target: null
+          yAxis.enabled: false
+          property real done: 0
+          onActiveChanged: if (active) done = 0
+          onTranslationChanged: {
+            const step = 110
+            while (translation.x - done >= step)  { strip.decrementCurrentIndex(); done += step }
+            while (translation.x - done <= -step) { strip.incrementCurrentIndex(); done -= step }
+          }
+        }
+
         delegate: Item {
           id: del
           required property var modelData

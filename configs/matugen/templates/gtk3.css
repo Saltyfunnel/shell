@@ -10,6 +10,30 @@ window, .background {
   color: {{colors.on_surface.default.hex}};
 }
 
+/* --- Sidebar / main panel divider --- */
+paned > separator,
+paned > separator:hover,
+paned > separator:backdrop,
+paned.horizontal > separator,
+paned.horizontal > separator:hover {
+  background-color: transparent;
+  background-image: none;
+  border-color: transparent;
+  box-shadow: none;
+  min-width: 1px;
+}
+
+/* --- Scrolled window edges (can draw a line next to the view) --- */
+scrolledwindow,
+scrolledwindow viewport,
+scrolledwindow undershoot,
+scrolledwindow overshoot {
+  border: none;
+  border-image: none;
+  background-image: none;
+  box-shadow: none;
+}
+
 /* Force headerbars and internal boxes to stay dark without breaking parser */
 headerbar,
 .titlebar,
@@ -54,8 +78,15 @@ headerbar button:hover,
   box-shadow: none;
 }
 
-.sidebar, .sidebar .view {
+/* Sidebar: no border on any side, including the divider edge */
+.sidebar,
+.sidebar:dir(ltr),
+.sidebar:dir(rtl),
+.sidebar .view {
   background-color: {{colors.surface_container_low.default.hex}};
+  border: none;
+  border-image: none;
+  box-shadow: none;
 }
 
 .view:selected, iconview:selected, row:selected, treeview.view:selected, .sidebar row:selected {

@@ -140,7 +140,7 @@ deploy() {  # deploy <repo path> <destination> <label>
 
 # Install LocalSend from the latest GitHub release tarball (no AUR, no Flatpak),
 # and write a .desktop entry whose Icon= points at the real logo file.
-# Runs as root; the ownership fix in the final step hands ~/.local back to you.
+# Runs as root, so everything it creates is handed back to your user at the end.
 install_localsend() {
     local dir="$USER_HOME/.local/share/localsend" tmp url bin icon
     url=$(curl -fsS https://api.github.com/repos/localsend/localsend/releases/latest \
@@ -174,6 +174,9 @@ Terminal=false
 Type=Application
 Categories=Network;FileTransfer;
 EOF
+
+    # Safety net: never leave root-owned files inside the user's ~/.local
+    chown -R "$USER_NAME:$USER_NAME" "$USER_HOME/.local"
 }
 
 cleanup() { printf '\e[?25h' 2>/dev/null || true; echo ""; }
@@ -201,6 +204,16 @@ CONFIGS_SRC="$REPO_ROOT/configs"
 SCRIPTS_SRC="$REPO_ROOT/scripts"
 WALLPAPERS_REPO="https://github.com/Saltyfunnel/Wallpapers.git"
 CARGO_PATH="/usr/local/bin:/usr/bin:/bin:$USER_HOME/.cargo/bin"
+
+# Make sure the user's own directories exist and belong to the user BEFORE any
+# step runs as root. Otherwise root can create ~/.local (etc.) first, and later
+# `as_user mkdir` calls fail with "permission denied". The chown also repairs
+# anything left root-owned by an earlier failed run.
+[[ -e "$USER_HOME/.local" ]] && chown -R "$USER_NAME:$USER_NAME" "$USER_HOME/.local"
+[[ -e "$USER_HOME/.cache" ]] && chown -R "$USER_NAME:$USER_NAME" "$USER_HOME/.cache"
+[[ -e "$CONFIG_DIR" ]]       && chown -R "$USER_NAME:$USER_NAME" "$CONFIG_DIR"
+as_user mkdir -p "$CONFIG_DIR" "$USER_HOME/.cache" \
+    "$USER_HOME/.local/share/applications" "$USER_HOME/.local/share/icons"
 
 clear
 echo ""

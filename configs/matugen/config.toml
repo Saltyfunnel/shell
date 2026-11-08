@@ -52,3 +52,8 @@ output_path = "~/.config/hypr/hyprlock.conf"
 [templates.sddm]
 input_path  = "~/.config/matugen/templates/sddm-colors.json"
 output_path = "/var/cache/wal/colors.json"
+
+[templates.btop]
+input_path = '~/.config/matugen/templates/btop.theme'
+output_path = '~/.config/btop/themes/matugen.theme'
+post_hook = 'pkill -SIGUSR2 btop'

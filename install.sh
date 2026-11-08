@@ -304,6 +304,8 @@ ALL_PACKAGES=("${CORE[@]}" "${LOGIN[@]}" "${AUDIO[@]}" "${TERMINAL[@]}" "${UTILI
 run_command "pacman -S --noconfirm --needed ${ALL_PACKAGES[*]}" \
     "Installing ${#ALL_PACKAGES[@]} packages"
 
+run_command "fc-cache -f" "Refreshing font cache"
+
 ################################################################################
 # 4. QUICKSHELL, MATUGEN & LOCALSEND
 ################################################################################
@@ -408,6 +410,25 @@ EOF
 fi
 print_ok "GPU environment written  →  hypr/gpu-env.lua"
 
+# Default fonts: Hack Nerd Font for monospace and sans-serif
+as_user mkdir -p "$CONFIG_DIR/fontconfig"
+cat > "$CONFIG_DIR/fontconfig/fonts.conf" << 'EOF'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <alias>
+    <family>monospace</family>
+    <prefer><family>Hack Nerd Font Mono</family></prefer>
+  </alias>
+  <alias>
+    <family>sans-serif</family>
+    <prefer><family>Hack Nerd Font</family></prefer>
+  </alias>
+</fontconfig>
+EOF
+chown "$USER_NAME:$USER_NAME" "$CONFIG_DIR/fontconfig/fonts.conf"
+print_ok "Default fonts set  →  Hack Nerd Font"
+
 ################################################################################
 # 7. WALLPAPERS & DEFAULT SHELL
 ################################################################################
@@ -446,6 +467,9 @@ as_user dbus-run-session -- gsettings set org.gnome.desktop.interface icon-theme
     > "$LOG_DIR/gsettings.log" 2>&1 \
     && print_ok "Icon theme set for GTK apps" \
     || print_warn "Could not set icon theme now (hyprland.lua sets it at login)"
+
+as_user dbus-run-session -- gsettings set org.gnome.desktop.interface font-name 'Hack Nerd Font 11' >/dev/null 2>&1 || true
+as_user dbus-run-session -- gsettings set org.gnome.desktop.interface monospace-font-name 'Hack Nerd Font Mono 11' >/dev/null 2>&1 || true
 
 ################################################################################
 # 9. SERVICES & SDDM LOGIN SCREEN

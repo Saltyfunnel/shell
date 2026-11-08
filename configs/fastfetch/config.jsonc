@@ -8,8 +8,8 @@
             "left": 2
         },
         "color": {
-            "1": "#ffb2b9",
-            "2": "#e5bdbf"
+            "1": "{{colors.primary.default.hex}}",
+            "2": "{{colors.secondary.default.hex}}"
         }
     },
     "display": {
@@ -19,44 +19,44 @@
         "break",
         {
             "type": "custom",
-            "format": "\u001b[90m  \u001b[31m  \u001b[32m  \u001b[33m  \u001b[34m  \u001b[35m  \u001b[36m  \u001b[37m "
+            "format": "\u001b[38;2;{{colors.outline.default.red}};{{colors.outline.default.green}};{{colors.outline.default.blue}}m●  \u001b[38;2;{{colors.error.default.red}};{{colors.error.default.green}};{{colors.error.default.blue}}m●  \u001b[38;2;{{colors.primary.default.red}};{{colors.primary.default.green}};{{colors.primary.default.blue}}m●  \u001b[38;2;{{colors.secondary.default.red}};{{colors.secondary.default.green}};{{colors.secondary.default.blue}}m●  \u001b[38;2;{{colors.tertiary.default.red}};{{colors.tertiary.default.green}};{{colors.tertiary.default.blue}}m●  \u001b[38;2;{{colors.primary_fixed_dim.default.red}};{{colors.primary_fixed_dim.default.green}};{{colors.primary_fixed_dim.default.blue}}m●  \u001b[38;2;{{colors.secondary_fixed_dim.default.red}};{{colors.secondary_fixed_dim.default.green}};{{colors.secondary_fixed_dim.default.blue}}m●  \u001b[38;2;{{colors.on_surface.default.red}};{{colors.on_surface.default.green}};{{colors.on_surface.default.blue}}m●\u001b[0m"
         },
         "break",
         {
             "type": "os",
             "key": " ",
-            "keyColor": "#ffb2b9"
+            "keyColor": "{{colors.primary.default.hex}}"
         },
         {
             "type": "kernel",
             "key": " ",
-            "keyColor": "#e5bdbf"
+            "keyColor": "{{colors.secondary.default.hex}}"
         },
         {
             "type": "packages",
             "format": "{} (pacman)",
             "key": " ",
-            "keyColor": "#e8c08e"
+            "keyColor": "{{colors.tertiary.default.hex}}"
         },
         {
             "type": "shell",
             "key": " ",
-            "keyColor": "#ffb2b9"
+            "keyColor": "{{colors.primary.default.hex}}"
         },
         {
             "type": "terminal",
             "key": " ",
-            "keyColor": "#e5bdbf"
+            "keyColor": "{{colors.secondary.default.hex}}"
         },
         {
             "type": "wm",
             "key": " ",
-            "keyColor": "#e8c08e"
+            "keyColor": "{{colors.tertiary.default.hex}}"
         },
         "break",
         {
             "type": "custom",
-            "format": "\u001b[90m  \u001b[31m  \u001b[32m  \u001b[33m  \u001b[34m  \u001b[35m  \u001b[36m  \u001b[37m "
+            "format": "\u001b[38;2;{{colors.outline.default.red}};{{colors.outline.default.green}};{{colors.outline.default.blue}}m●  \u001b[38;2;{{colors.error.default.red}};{{colors.error.default.green}};{{colors.error.default.blue}}m●  \u001b[38;2;{{colors.primary.default.red}};{{colors.primary.default.green}};{{colors.primary.default.blue}}m●  \u001b[38;2;{{colors.secondary.default.red}};{{colors.secondary.default.green}};{{colors.secondary.default.blue}}m●  \u001b[38;2;{{colors.tertiary.default.red}};{{colors.tertiary.default.green}};{{colors.tertiary.default.blue}}m●  \u001b[38;2;{{colors.primary_fixed_dim.default.red}};{{colors.primary_fixed_dim.default.green}};{{colors.primary_fixed_dim.default.blue}}m●  \u001b[38;2;{{colors.secondary_fixed_dim.default.red}};{{colors.secondary_fixed_dim.default.green}};{{colors.secondary_fixed_dim.default.blue}}m●  \u001b[38;2;{{colors.on_surface.default.red}};{{colors.on_surface.default.green}};{{colors.on_surface.default.blue}}m●\u001b[0m"
         },
         "break"
     ]

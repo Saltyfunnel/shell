@@ -19,7 +19,6 @@
 
 ### 🔥 Highlights
 
-* **No Display Manager** — Auto-logs into `tty1` and launches Hyprland instantly via Fish.
 * **Dynamic Palette** — **Matugen** automatically generates system-wide colors (Kitty, Mako, GTK) from wallpapers.
 * **Smart Installer** — Auto-detects GPU drivers (NVIDIA / AMD / Intel), sets environment vars, and logs everything to `/tmp`.
 * **Sleek UI** — Powered by **Quickshell** and **Colloid-Dynamic** icons.

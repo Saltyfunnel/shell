@@ -295,7 +295,7 @@ SETTINGS=(dconf gsettings-desktop-schemas)
 APPS=(firefox spotify-launcher qbittorrent gnome-disk-utility zed)
 GAMING=(steam gamemode lib32-gamemode mangohud lib32-mangohud)
 DEV=(git base-devel curl wget nano jq rust)
-FONTS=(ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji)
+FONTS=(ttf-hack-nerd ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji)
 DISK=(ntfs-3g dosfstools unzip p7zip unrar)
 
 ALL_PACKAGES=("${CORE[@]}" "${LOGIN[@]}" "${AUDIO[@]}" "${TERMINAL[@]}" "${UTILITY[@]}" "${FILES[@]}"

@@ -12,14 +12,14 @@ Row {
   Text {
     text: parent.icon
     color: Colors.accent
-    font.family: "JetBrainsMono Nerd Font"
+    font.family: "Hack Nerd Font"
     font.pixelSize: 18
     anchors.verticalCenter: parent.verticalCenter
   }
   Text {
     text: parent.title
     color: Colors.text
-    font.family: "JetBrainsMono Nerd Font"
+    font.family: "Hack Nerd Font"
     font.pixelSize: 16
     font.bold: true
     anchors.verticalCenter: parent.verticalCenter

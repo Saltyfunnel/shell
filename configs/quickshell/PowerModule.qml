@@ -48,7 +48,7 @@ Item {
   Text {
     anchors.centerIn: parent
     color: barMouse.containsMouse || card.shown ? Colors.text : Colors.accent
-    font.family: "JetBrainsMono Nerd Font"
+    font.family: "Hack Nerd Font"
     font.pixelSize: 15
     text: "󰐥"
     Behavior on color { ColorAnimation { duration: Theme.animFast } }

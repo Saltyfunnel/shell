@@ -11,7 +11,7 @@ Item {
   Text {
     text: label
     color: Colors.subtext
-    font.family: "JetBrainsMono Nerd Font"
+    font.family: "Hack Nerd Font"
     font.pixelSize: 12
   }
   Text {
@@ -21,7 +21,7 @@ Item {
     elide: Text.ElideRight
     text: value
     color: Colors.text
-    font.family: "JetBrainsMono Nerd Font"
+    font.family: "Hack Nerd Font"
     font.pixelSize: 12
     font.bold: true
   }

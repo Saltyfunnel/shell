@@ -27,7 +27,7 @@ DashPanel {
             anchors.verticalCenter: parent.verticalCenter
             text: !Connectivity.connected ? "\udb81\uddaa" : (Connectivity.isWifi ? "\udb81\udda9" : "\udb80\ude00")
             color: Connectivity.connected ? Colors.accent : Colors.subtext
-            font.family: "JetBrainsMono Nerd Font"
+            font.family: "Hack Nerd Font"
             font.pixelSize: 34
           }
           Column {
@@ -118,7 +118,7 @@ DashPanel {
               anchors.verticalCenter: parent.verticalCenter
               text: !Connectivity.powered ? "\udb80\udcb2" : (btCard.connectedCount > 0 ? "\udb80\udcb1" : "\udb80\udcaf")
               color: Connectivity.powered ? Colors.accent : Colors.subtext
-              font.family: "JetBrainsMono Nerd Font"
+              font.family: "Hack Nerd Font"
               font.pixelSize: 34
             }
             Column {

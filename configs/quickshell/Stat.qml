@@ -11,14 +11,14 @@ Row {
   Text {
     text: icon
     color: tint
-    font.family: "JetBrainsMono Nerd Font"
+    font.family: "Hack Nerd Font"
     font.pixelSize: 14
     anchors.verticalCenter: parent.verticalCenter
   }
   Text {
     text: value
     color: Colors.text
-    font.family: "JetBrainsMono Nerd Font"
+    font.family: "Hack Nerd Font"
     font.pixelSize: 13
     anchors.verticalCenter: parent.verticalCenter
   }

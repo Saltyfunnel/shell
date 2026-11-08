@@ -146,7 +146,7 @@ ShellRoot {
           anchors.centerIn: parent
           text: "󰑊  REC"
           color: "#FF5555"
-          font.family: "JetBrainsMono Nerd Font"
+          font.family: "Hack Nerd Font"
           font.pixelSize: 13
 
           SequentialAnimation on opacity {

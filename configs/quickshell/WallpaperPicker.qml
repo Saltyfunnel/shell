@@ -58,7 +58,7 @@ Item {
   Text {
     anchors.centerIn: parent
     color: Colors.text
-    font.family: "JetBrainsMono Nerd Font"
+    font.family: "Hack Nerd Font"
     font.pixelSize: 15
     text: "󰸉"
   }
@@ -169,14 +169,14 @@ Item {
           Text {
             text: "󰸉"
             color: Colors.accent
-            font.family: "JetBrainsMono Nerd Font"
+            font.family: "Hack Nerd Font"
             font.pixelSize: 22
             anchors.verticalCenter: parent.verticalCenter
           }
           Text {
             text: "Wallpapers"
             color: Colors.text
-            font.family: "JetBrainsMono Nerd Font"
+            font.family: "Hack Nerd Font"
             font.pixelSize: 18
             font.bold: true
             anchors.verticalCenter: parent.verticalCenter
@@ -201,7 +201,7 @@ Item {
             Text {
               text: "󰍉"
               color: Colors.accent
-              font.family: "JetBrainsMono Nerd Font"
+              font.family: "Hack Nerd Font"
               font.pixelSize: 14
               anchors.verticalCenter: parent.verticalCenter
             }
@@ -211,7 +211,7 @@ Item {
               width: parent.width - 28
               height: parent.height
               color: Colors.text
-              font.family: "JetBrainsMono Nerd Font"
+              font.family: "Hack Nerd Font"
               font.pixelSize: 13
               verticalAlignment: TextInput.AlignVCenter
               clip: true
@@ -237,7 +237,7 @@ Item {
                 text: "Search..."
                 color: Colors.text
                 opacity: 0.4
-                font.family: "JetBrainsMono Nerd Font"
+                font.family: "Hack Nerd Font"
                 font.pixelSize: 13
                 anchors.verticalCenter: parent.verticalCenter
                 visible: searchField.text === ""
@@ -285,7 +285,7 @@ Item {
             id: capText
             anchors.centerIn: parent
             color: "white"
-            font.family: "JetBrainsMono Nerd Font"
+            font.family: "Hack Nerd Font"
             font.pixelSize: 12
             text: root.current ? root.current.name + "   ·   " + (strip.currentIndex + 1) + " / " + root.results.length : ""
           }
@@ -416,7 +416,7 @@ Item {
               width: 200
               text: del.modelData.name
               color: del.selected ? Colors.text : Colors.subtext
-              font.family: "JetBrainsMono Nerd Font"
+              font.family: "Hack Nerd Font"
               font.pixelSize: 11
               elide: Text.ElideMiddle
               horizontalAlignment: Text.AlignHCenter
@@ -452,14 +452,14 @@ Item {
                 anchors.centerIn: parent
                 text: modelData[0]
                 color: Colors.text
-                font.family: "JetBrainsMono Nerd Font"
+                font.family: "Hack Nerd Font"
                 font.pixelSize: 10
               }
             }
             Text {
               text: modelData[1]
               color: Colors.subtext
-              font.family: "JetBrainsMono Nerd Font"
+              font.family: "Hack Nerd Font"
               font.pixelSize: 11
               anchors.verticalCenter: parent.verticalCenter
             }

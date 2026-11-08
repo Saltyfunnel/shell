@@ -25,14 +25,14 @@ Rectangle {
     Text {
       text: row.icon
       color: row.iconColor
-      font.family: "JetBrainsMono Nerd Font"
+      font.family: "Hack Nerd Font"
       font.pixelSize: 16
       anchors.verticalCenter: parent.verticalCenter
     }
     Text {
       text: row.label
       color: Colors.text
-      font.family: "JetBrainsMono Nerd Font"
+      font.family: "Hack Nerd Font"
       font.pixelSize: 13
       anchors.verticalCenter: parent.verticalCenter
     }

@@ -6,7 +6,7 @@ import Quickshell
 import QtQuick
 
 Singleton {
-  readonly property string font: "JetBrainsMono Nerd Font"
+  readonly property string font: "Hack Nerd Font"
 
   // corner radii
   readonly property int radiusLg: 18     // popups

@@ -18,14 +18,14 @@ Column {
     Text {
       text: label
       color: Colors.subtext
-      font.family: "JetBrainsMono Nerd Font"
+      font.family: "Hack Nerd Font"
       font.pixelSize: 12
     }
     Text {
       anchors.right: parent.right
       text: valueText
       color: Colors.text
-      font.family: "JetBrainsMono Nerd Font"
+      font.family: "Hack Nerd Font"
       font.pixelSize: 12
       font.bold: true
     }

@@ -23,7 +23,7 @@ Rectangle {
       anchors.horizontalCenter: parent.horizontalCenter
       text: root.icon
       color: root.iconColor
-      font.family: "JetBrainsMono Nerd Font"
+      font.family: "Hack Nerd Font"
       font.pixelSize: root.iconSize
     }
     Text {

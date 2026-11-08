@@ -231,7 +231,7 @@ Scope {
               Text {
                 text: parent.parent.parent.activeEntry ? parent.parent.parent.activeEntry.name : ""
                 color: Colors.text
-                font.family: "JetBrainsMono Nerd Font"
+                font.family: "Hack Nerd Font"
                 font.pixelSize: 18
                 font.weight: Font.Bold
                 horizontalAlignment: Text.AlignHCenter
@@ -242,7 +242,7 @@ Scope {
               Text {
                 text: parent.parent.parent.activeEntry ? (parent.parent.parent.activeEntry.comment ?? parent.parent.parent.activeEntry.genericName ?? "Application") : ""
                 color: Colors.subtext
-                font.family: "JetBrainsMono Nerd Font"
+                font.family: "Hack Nerd Font"
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
                 width: parent.width
@@ -279,13 +279,13 @@ Scope {
               Text {
                 text: "󰜺"
                 color: Colors.accent
-                font.family: "JetBrainsMono Nerd Font"
+                font.family: "Hack Nerd Font"
                 font.pixelSize: 12
               }
               Text {
                 text: "Hide"
                 color: Colors.accent
-                font.family: "JetBrainsMono Nerd Font"
+                font.family: "Hack Nerd Font"
                 font.pixelSize: 11
                 font.weight: Font.Bold
               }
@@ -318,13 +318,13 @@ Scope {
               Text {
                 text: "󰃨"
                 color: Colors.text
-                font.family: "JetBrainsMono Nerd Font"
+                font.family: "Hack Nerd Font"
                 font.pixelSize: 12
               }
               Text {
                 text: "Reset (" + root.hiddenApps.length + ")"
                 color: Colors.text
-                font.family: "JetBrainsMono Nerd Font"
+                font.family: "Hack Nerd Font"
                 font.pixelSize: 11
                 font.weight: Font.Bold
               }
@@ -369,7 +369,7 @@ Scope {
             Text {
               text: "󰍉"
               color: Colors.accent
-              font.family: "JetBrainsMono Nerd Font"
+              font.family: "Hack Nerd Font"
               font.pixelSize: 18
               anchors.verticalCenter: parent.verticalCenter
             }
@@ -380,7 +380,7 @@ Scope {
               height: parent.height
               verticalAlignment: TextInput.AlignVCenter
               color: Colors.text
-              font.family: "JetBrainsMono Nerd Font"
+              font.family: "Hack Nerd Font"
               font.pixelSize: 15
               clip: true
 
@@ -398,7 +398,7 @@ Scope {
                 text: "Search apps..."
                 color: Colors.subtext
                 opacity: 0.4
-                font.family: "JetBrainsMono Nerd Font"
+                font.family: "Hack Nerd Font"
                 font.pixelSize: 15
                 anchors.verticalCenter: parent.verticalCenter
                 visible: searchField.text === ""
@@ -449,7 +449,7 @@ Scope {
               Text {
                 text: modelData.name
                 color: list.currentIndex === index ? Colors.accent : Colors.text
-                font.family: "JetBrainsMono Nerd Font"
+                font.family: "Hack Nerd Font"
                 font.pixelSize: 14
                 font.weight: list.currentIndex === index ? Font.Bold : Font.Normal
                 elide: Text.ElideRight
@@ -460,7 +460,7 @@ Scope {
               Text {
                 text: "󰌑"
                 color: Colors.accent
-                font.family: "JetBrainsMono Nerd Font"
+                font.family: "Hack Nerd Font"
                 font.pixelSize: 13
                 anchors.verticalCenter: parent.verticalCenter
                 visible: list.currentIndex === index

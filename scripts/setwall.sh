@@ -33,10 +33,20 @@ echo "$wall" > "$STATE"
 hyprctl hyprpaper wallpaper ",$wall" >/dev/null 2>&1 \
     || echo "warning: hyprpaper call failed (is hyprpaper running?)" >&2
 
-# 2. Recolour everything from it (Quickshell reloads on its own;
-#    kitty and mako are reloaded by matugen hooks; reopen Thunar to see its new colours)
-matugen image "$wall" -m dark --prefer saturation
+# 2. Recolour everything from it
+#    Grey wallpapers get a monochrome scheme (matugen would otherwise fall back to its default blue seed).
+#    Colourful ones get a scheme that spreads hues across primary/secondary/tertiary.
+sat=$(magick "$wall" -resize 64x64 -colorspace HSL -channel G -separate +channel \
+      -format '%[fx:mean]' info: 2>/dev/null) || sat=1
 
+if awk "BEGIN { exit !($sat < 0.08) }"; then
+    scheme="scheme-monochrome"
+else
+    scheme="scheme-content"
+fi
+echo "saturation=$sat scheme=$scheme"
+
+matugen image "$wall" -m dark -t "$scheme" --prefer saturation
 # 3. Recolour the folder icons to match
 "$HOME/.config/scripts/recolor-icons.sh" "$(cat "$HOME/.cache/accent_color")"
 
@@ -45,3 +55,6 @@ if [ -f "$HOME/.cache/wal/colors.json" ]; then
     cp -f "$HOME/.cache/wal/colors.json" /var/cache/wal/colors.json 2>/dev/null || true
     chmod 644 /var/cache/wal/colors.json 2>/dev/null || true
 fi
+
+# Thunar only reads its CSS at launch, so drop the daemon and let it restart with the new colours
+pkill -x thunar 2>/dev/null || true

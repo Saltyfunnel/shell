@@ -65,7 +65,7 @@ Item {
       anchors.fill: parent
       anchors.topMargin: 8
       radius: Theme.radiusLg
-      color: Colors.surface
+      color: Qt.alpha(Colors.surface, 0.9)
 
       Column {
         anchors.fill: parent

@@ -6,7 +6,7 @@ import QtQuick
 Singleton {
   id: root
 
-  readonly property int bars: 20
+  readonly property int bars: 30
   property bool active: false
   property var values: new Array(bars).fill(0)
 

@@ -58,3 +58,6 @@ fi
 
 # Thunar only reads its CSS at launch, so drop the daemon and let it restart with the new colours
 pkill -x thunar 2>/dev/null || true
+
+# File dialogs (Zed, Firefox, uploads) are drawn by this portal, which also only reads its CSS at launch
+systemctl --user restart xdg-desktop-portal-gtk 2>/dev/null || true

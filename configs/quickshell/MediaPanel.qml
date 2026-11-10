@@ -1,4 +1,4 @@
-// MediaPanel.qml — the dashboard's Media tab: big album art, title, progress, controls.
+// MediaPanel.qml — the dashboard's Media tab: spinning record art, title, equalizer, progress, controls.
 import Quickshell
 import QtQuick
 
@@ -13,6 +13,13 @@ DashPanel {
     interval: 1000
     repeat: true
     onTriggered: root.player?.positionChanged()
+  }
+
+  // run cava only while music is playing and this tab is on screen
+  Binding {
+    target: Cava
+    property: "active"
+    value: MediaPlayers.playing && root.visible
   }
 
   Text {
@@ -30,28 +37,51 @@ DashPanel {
     anchors.margins: 24
     spacing: 28
 
-    // album art
+    // album art as a spinning record
     Item {
       width: 250
       height: 250
       anchors.verticalCenter: parent.verticalCenter
 
-      Rectangle {
+      Item {
+        id: disc
         anchors.fill: parent
-        radius: 18
-        color: Colors.track
-        Text {
-          anchors.centerIn: parent
-          text: "󰎆"
-          color: Colors.subtext
-          font.family: Theme.font
-          font.pixelSize: 56
+
+        RotationAnimator on rotation {
+          from: 0
+          to: 360
+          duration: 18000          // lower = faster spin
+          loops: Animation.Infinite
+          running: root.visible
+          paused: !MediaPlayers.playing
         }
-      }
-      RoundedImage {
-        anchors.fill: parent
-        radius: 18
-        source: root.player?.trackArtUrl ?? ""
+
+        Rectangle {
+          anchors.fill: parent
+          radius: width / 2
+          color: Colors.track
+          Text {
+            anchors.centerIn: parent
+            text: "󰎆"
+            color: Colors.subtext
+            font.family: Theme.font
+            font.pixelSize: 56
+          }
+        }
+        RoundedImage {
+          anchors.fill: parent
+          radius: width / 2
+          source: root.player?.trackArtUrl ?? ""
+        }
+
+        // spindle hole
+        Rectangle {
+          anchors.centerIn: parent
+          width: 20
+          height: 20
+          radius: 10
+          color: Colors.track
+        }
       }
     }
 
@@ -79,6 +109,32 @@ DashPanel {
           font.family: Theme.font
           font.pixelSize: 15
           elide: Text.ElideRight
+        }
+      }
+
+      // cava equalizer
+      Row {
+        id: eq
+        width: parent.width
+        height: 40
+        spacing: 4
+
+        Repeater {
+          model: Cava.bars
+          Item {
+            required property int index
+            width: (eq.width - eq.spacing * (Cava.bars - 1)) / Cava.bars
+            height: eq.height
+
+            Rectangle {
+              anchors.bottom: parent.bottom
+              width: parent.width
+              radius: width / 2
+              height: Math.max(3, parent.height * (Cava.values[index] ?? 0))
+              color: Colors.accent
+              Behavior on height { NumberAnimation { duration: 70 } }
+            }
+          }
         }
       }
 

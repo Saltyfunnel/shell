@@ -57,3 +57,8 @@ output_path = "/var/cache/wal/colors.json"
 input_path = '~/.config/matugen/templates/btop.theme'
 output_path = '~/.config/btop/themes/matugen.theme'
 post_hook = 'pkill -SIGUSR2 btop'
+
+[templates.cava]
+input_path = '~/.config/matugen/templates/cava-theme'
+output_path = '~/.config/cava/themes/matugen'
+post_hook = 'pkill -USR2 cava || true'

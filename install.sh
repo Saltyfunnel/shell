@@ -365,6 +365,29 @@ deploy "$SCRIPTS_SRC"             "$CONFIG_DIR/scripts"     "User scripts"
 as_user find "$CONFIG_DIR/scripts" -type f -exec chmod +x {} + 2>/dev/null || true
 as_user touch "$CONFIG_DIR/kitty/colors.conf"
 
+# cava: terminal config + matugen theme (the Quickshell equalizer uses its own config)
+as_user mkdir -p "$CONFIG_DIR/cava/themes"
+if [[ ! -f "$CONFIG_DIR/cava/config" ]]; then
+    as_user tee "$CONFIG_DIR/cava/config" > /dev/null << 'EOF'
+[general]
+framerate = 60
+
+[color]
+theme = 'matugen'
+EOF
+fi
+# placeholder theme so cava starts before matugen has generated the real one
+if [[ ! -f "$CONFIG_DIR/cava/themes/matugen" ]]; then
+    as_user tee "$CONFIG_DIR/cava/themes/matugen" > /dev/null << 'EOF'
+[color]
+gradient = 1
+gradient_color_1 = '#94e2d5'
+gradient_color_2 = '#89b4fa'
+gradient_color_3 = '#cba6f7'
+EOF
+fi
+print_ok "cava configured (theme follows matugen)"
+
 # GPU environment file (hyprland.lua loads this at startup, so it must exist)
 GPU_ENV_FILE="$CONFIG_DIR/hypr/gpu-env.lua"
 if echo "$GPU_INFO" | grep -qi nvidia; then

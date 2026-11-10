@@ -62,3 +62,10 @@ post_hook = 'pkill -SIGUSR2 btop'
 input_path = '~/.config/matugen/templates/cava-theme'
 output_path = '~/.config/cava/themes/matugen'
 post_hook = 'pkill -USR2 cava || true'
+
+[config.custom_colors]
+green  = { color = "#8fd18a", blend = true }
+yellow = { color = "#e6c86e", blend = true }
+blue   = { color = "#6fb1e8", blend = true }
+cyan   = { color = "#5fd0c8", blend = true }
+orange = { color = "#f0a06a", blend = true }

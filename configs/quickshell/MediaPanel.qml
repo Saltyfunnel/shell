@@ -1,6 +1,8 @@
-// MediaPanel.qml — the dashboard's Media tab: spinning record art, title, equalizer, progress, controls.
+// MediaPanel.qml — the dashboard's Media tab: blurred cover background, spinning record art,
+// title, equalizer, progress, controls.
 import Quickshell
 import QtQuick
+import QtQuick.Effects
 
 DashPanel {
   id: root
@@ -22,6 +24,44 @@ DashPanel {
     value: MediaPlayers.playing && root.visible
   }
 
+  // ---------- blurred cover as the panel background ----------
+  Image {
+    id: bgSrc
+    anchors.fill: parent
+    visible: false
+    source: root.player?.trackArtUrl ?? ""
+    fillMode: Image.PreserveAspectCrop
+    smooth: true
+    asynchronous: true
+  }
+
+  Item {
+    id: bgMask
+    visible: false
+    width: root.width
+    height: root.height
+    layer.enabled: true
+    layer.smooth: true
+    layer.samples: 4
+    Rectangle { anchors.fill: parent; radius: root.radius; color: "black" }
+  }
+
+  MultiEffect {
+    anchors.fill: parent
+    visible: root.player !== null && bgSrc.status === Image.Ready
+    source: bgSrc
+    autoPaddingEnabled: false
+    blurEnabled: true
+    blur: 1.0
+    blurMax: 64            // bigger = blurrier
+    brightness: -0.35      // darker = text stays readable
+    saturation: 0.3
+    maskEnabled: true
+    maskSource: bgMask
+    maskThresholdMin: 0.5
+    maskSpreadAtMin: 1.0
+  }
+
   Text {
     visible: root.player === null
     anchors.centerIn: parent
@@ -39,26 +79,20 @@ DashPanel {
 
     // album art as a spinning record
     Item {
+      id: discSlot
       width: 250
       height: 250
       anchors.verticalCenter: parent.verticalCenter
 
+      // source: placeholder + cover as plain squares
       Item {
-        id: disc
-        anchors.fill: parent
-
-        RotationAnimator on rotation {
-          from: 0
-          to: 360
-          duration: 18000          // lower = faster spin
-          loops: Animation.Infinite
-          running: root.visible
-          paused: !MediaPlayers.playing
-        }
+        id: discSrc
+        visible: false
+        width: 250
+        height: 250
 
         Rectangle {
           anchors.fill: parent
-          radius: width / 2
           color: Colors.track
           Text {
             anchors.centerIn: parent
@@ -68,20 +102,62 @@ DashPanel {
             font.pixelSize: 56
           }
         }
-        RoundedImage {
+        Image {
           anchors.fill: parent
-          radius: width / 2
           source: root.player?.trackArtUrl ?? ""
+          fillMode: Image.PreserveAspectCrop
+          smooth: true
+          mipmap: true
+          asynchronous: true
         }
+      }
 
-        // spindle hole
+      // circle mask, a little smaller than the slot so the spinning edge never touches the quad edge
+      Item {
+        id: discMask
+        visible: false
+        width: 250
+        height: 250
+        layer.enabled: true
+        layer.smooth: true
+        layer.samples: 4
         Rectangle {
           anchors.centerIn: parent
-          width: 20
-          height: 20
-          radius: 10
-          color: Colors.track
+          width: 242
+          height: 242
+          radius: 121
+          color: "black"
         }
+      }
+
+      MultiEffect {
+        id: disc
+        anchors.fill: parent
+        source: discSrc
+        autoPaddingEnabled: false
+        maskEnabled: true
+        maskSource: discMask
+        maskThresholdMin: 0.5
+        maskSpreadAtMin: 1.0
+
+        RotationAnimator on rotation {
+          from: 0
+          to: 360
+          duration: 18000          // lower = faster spin
+          loops: Animation.Infinite
+          running: root.visible
+          paused: !MediaPlayers.playing
+        }
+      }
+
+      // spindle hole (stays still, it is symmetric)
+      Rectangle {
+        anchors.centerIn: parent
+        width: 20
+        height: 20
+        radius: 10
+        antialiasing: true
+        color: Qt.rgba(0, 0, 0, 0.65)
       }
     }
 

@@ -1,6 +1,8 @@
-// DashMedia.qml — compact now-playing card: big album art in a progress ring, title and controls over the art.
+// DashMedia.qml — compact now-playing card: blurred cover as the card background,
+// the cover as a circle in a progress ring, title and controls over the art.
 import Quickshell
 import QtQuick
+import QtQuick.Effects
 
 DashPanel {
   id: root
@@ -18,6 +20,45 @@ DashPanel {
     onTriggered: root.player?.positionChanged()
   }
 
+  // ---------- blurred cover as the card background ----------
+  Image {
+    id: bgSrc
+    anchors.fill: parent
+    visible: false
+    source: root.player?.trackArtUrl ?? ""
+    fillMode: Image.PreserveAspectCrop
+    smooth: true
+    asynchronous: true
+  }
+
+  // rounded-rectangle mask matching the card corners
+  Item {
+    id: bgMask
+    visible: false
+    width: root.width
+    height: root.height
+    layer.enabled: true
+    layer.smooth: true
+    layer.samples: 4
+    Rectangle { anchors.fill: parent; radius: root.radius; color: "black" }
+  }
+
+  MultiEffect {
+    anchors.fill: parent
+    visible: root.player !== null && bgSrc.status === Image.Ready
+    source: bgSrc
+    autoPaddingEnabled: false
+    blurEnabled: true
+    blur: 1.0
+    blurMax: 64            // bigger = blurrier
+    brightness: -0.3       // darker = text stays readable
+    saturation: 0.3
+    maskEnabled: true
+    maskSource: bgMask
+    maskThresholdMin: 0.5
+    maskSpreadAtMin: 1.0
+  }
+
   Text {
     visible: root.player === null
     anchors.centerIn: parent
@@ -27,7 +68,7 @@ DashPanel {
     font.pixelSize: 13
   }
 
-  // art + ring, sized from the card so it grows when the card grows
+  // ---------- art + ring, sized from the card so it grows when the card grows ----------
   Item {
     id: stage
     visible: root.player !== null
@@ -40,69 +81,62 @@ DashPanel {
 
     HoverHandler { id: hover }
 
-    // --- art layers: plain squares, the round edge is cut by the mask below ---
-
-    // placeholder when there is no cover
-    Rectangle {
-      anchors.centerIn: parent
+    // source for the round art: placeholder + cover, as plain squares
+    Item {
+      id: artSrc
+      visible: false
       width: stage.artSize
       height: stage.artSize
-      color: Colors.track
-      Text {
-        anchors.centerIn: parent
-        text: "󰎆"
-        color: Colors.subtext
-        font.family: Theme.font
-        font.pixelSize: stage.artSize * 0.3
+
+      Rectangle {
+        anchors.fill: parent
+        color: Colors.track
+        Text {
+          anchors.centerIn: parent
+          text: "󰎆"
+          color: Colors.subtext
+          font.family: Theme.font
+          font.pixelSize: stage.artSize * 0.3
+        }
+      }
+      Image {
+        anchors.fill: parent
+        source: root.player?.trackArtUrl ?? ""
+        fillMode: Image.PreserveAspectCrop
+        smooth: true
+        mipmap: true
+        asynchronous: true
       }
     }
 
-    Image {
+    // circle mask
+    Item {
+      id: circleMask
+      visible: false
+      width: stage.artSize
+      height: stage.artSize
+      layer.enabled: true
+      layer.smooth: true
+      layer.samples: 4
+      Rectangle { anchors.fill: parent; radius: width / 2; color: "black" }
+    }
+
+    // the round art; brightness dims it so the text stays readable
+    MultiEffect {
       anchors.centerIn: parent
       width: stage.artSize
       height: stage.artSize
-      source: root.player?.trackArtUrl ?? ""
-      fillMode: Image.PreserveAspectCrop
-      smooth: true
-      mipmap: true
-      asynchronous: true
+      source: artSrc
+      autoPaddingEnabled: false
+      maskEnabled: true
+      maskSource: circleMask
+      maskThresholdMin: 0.5
+      maskSpreadAtMin: 1.0
+      brightness: stage.showOverlay ? -0.45 : 0
+      Behavior on brightness { NumberAnimation { duration: 150 } }
     }
 
-    // dark scrim so the text stays readable on any cover
-    Rectangle {
-      anchors.centerIn: parent
-      width: stage.artSize
-      height: stage.artSize
-      color: Qt.rgba(0, 0, 0, 0.55)
-      opacity: stage.showOverlay ? 1 : 0
-      Behavior on opacity { NumberAnimation { duration: 150 } }
-    }
-
-    // --- circular cut-out: card colour everywhere except a smooth circle ---
-    Canvas {
-      id: mask
-      anchors.centerIn: parent
-      width: stage.artSize + 4
-      height: width
-      onWidthChanged: requestPaint()
-
-      Connections {
-        target: root
-        function onColorChanged() { mask.requestPaint() }
-      }
-
-      onPaint: {
-        const ctx = getContext("2d")
-        ctx.clearRect(0, 0, width, height)
-        ctx.fillStyle = root.color
-        ctx.beginPath()
-        ctx.rect(0, 0, width, height)
-        ctx.arc(width / 2, height / 2, stage.artSize / 2, 0, 2 * Math.PI, true)
-        ctx.fill()
-      }
-    }
-
-    // --- progress ring, drawn above the mask ---
+    // progress ring
     Canvas {
       id: ring
       anchors.fill: parent

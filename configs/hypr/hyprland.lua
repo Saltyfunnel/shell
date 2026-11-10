@@ -151,6 +151,17 @@ hl.window_rule({ match = { class = "updates" }, opacity = "0.80" })
 hl.window_rule({ match = { class = "updates" }, suppress_event = "maximize" })
 
 --------------------------------------------------------------------------------
+-- layer rules (blur behind the see-through dashboard popup)
+--------------------------------------------------------------------------------
+
+hl.layer_rule({
+    match = { namespace = "^quickshell$" },
+    blur = true,
+    blur_popups = true,
+    ignore_alpha = 0.3,
+})
+
+--------------------------------------------------------------------------------
 -- keybinds
 --------------------------------------------------------------------------------
 

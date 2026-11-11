@@ -2,8 +2,6 @@
 OUT_DIR="$HOME/Videos/Recordings"
 mkdir -p "$OUT_DIR"
 
-refresh_bar() { pkill -RTMIN+8 waybar; }
-
 start_recording() {
     local geom file
     geom=$(slurp) || return          # selection cancelled -> do nothing

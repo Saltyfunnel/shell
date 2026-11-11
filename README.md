@@ -15,8 +15,12 @@
 
 </div>
 
-<!-- Add screenshots here, e.g. docs/bar.png, docs/dashboard.png, docs/wallpaper-picker.png -->
+<div align="center">
 
+![Dashboard](docs/dashboard.png)
+![Launcher](docs/launcher.png)
+
+</div>
 ---
 
 ### 🔥 Highlights

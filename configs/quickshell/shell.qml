@@ -127,11 +127,31 @@ ShellRoot {
         }
       }
 
+      // ---------- TRAY: only visible while an app has a tray icon ----------
+      Rectangle {
+        id: trayIsland
+        visible: trayModule.active
+        anchors.right: powerIsland.left
+        anchors.rightMargin: 8
+        anchors.verticalCenter: parent.verticalCenter
+        height: 28
+        width: trayModule.implicitWidth + 20
+        radius: 15
+        color: Colors.surface
+        border.color: Colors.accent
+        border.width: 1
+
+        TrayModule {
+          id: trayModule
+          anchors.centerIn: parent
+        }
+      }
+
       // ---------- RECORDING INDICATOR: only while recording; click to stop ----------
       Rectangle {
         id: recIsland
         visible: Capture.isRecording
-        anchors.right: powerIsland.left
+        anchors.right: trayIsland.visible ? trayIsland.left : powerIsland.left
         anchors.rightMargin: 8
         anchors.verticalCenter: parent.verticalCenter
         height: 28

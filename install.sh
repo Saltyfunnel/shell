@@ -290,7 +290,7 @@ UTILITY=(grim slurp wl-clipboard brightnessctl pacman-contrib wf-recorder upower
          bluez bluez-utils blueman networkmanager udisks2 udiskie gvfs
          gtk3 libayatana-appindicator)
 FILES=(thunar thunar-volman thunar-archive-plugin tumbler ffmpegthumbnailer file-roller trash-cli)
-MEDIA=(mpv imv ffmpeg yt-dlp cava)
+MEDIA=(mpv imv imagemagick ffmpeg yt-dlp cava)
 SETTINGS=(dconf gsettings-desktop-schemas)
 APPS=(firefox spotify-launcher qbittorrent gnome-disk-utility zed)
 GAMING=(steam gamemode lib32-gamemode mangohud lib32-mangohud)

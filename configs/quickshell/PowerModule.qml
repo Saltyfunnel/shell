@@ -1,6 +1,3 @@
-// PowerModule.qml — bar icon + a Session card (lock / logout / suspend / reboot / shutdown).
-// Built from the shared pieces: OverlayCard, MenuHeader, MenuDivider, MenuRow.
-// Logout, reboot and shutdown need a second click to confirm.
 import Quickshell
 import QtQuick
 
@@ -19,7 +16,11 @@ Item {
 
   // which destructive action is waiting for its confirming click ("" = none)
   property string pending: ""
-  onOpenPopupChanged: pending = ""   // start fresh every time the card opens or closes
+  property string hoveredLabel: ""   // tracks currently hovered power button label
+  onOpenPopupChanged: {
+    pending = ""
+    hoveredLabel = ""
+  }
 
   Timer {
     id: confirmTimer
@@ -54,7 +55,7 @@ Item {
     Behavior on color { ColorAnimation { duration: Theme.animFast } }
   }
 
-  // covers the whole 32x24 slot, so it's easier to hit than just the glyph
+  // covers the whole slot, so it's easier to hit than just the glyph
   MouseArea {
     id: barMouse
     anchors.fill: parent
@@ -63,46 +64,96 @@ Item {
     onClicked: root.toggle(root.popupName)
   }
 
-  // ---------- the card ----------
+  // ---------- the card (Horizontal Layout) ----------
   OverlayCard {
     id: card
     shown: root.openPopup === root.popupName
-    cardWidth: 260
-    cardHeight: 330
-    onDismissed: root.toggle(root.popupName)
+    cardWidth: 340
+    cardHeight: 135
+    onDismissed: {
+      root.toggle(root.popupName)
+      root.hoveredLabel = ""
+    }
 
     Column {
       anchors.fill: parent
-      anchors.margins: 20
-      spacing: 10
+      anchors.margins: 16
+      spacing: 12
 
-      MenuHeader { icon: "󰐥"; title: "Session" }
-      MenuDivider {}
-
-      MenuRow { icon: "󰌾"; label: "Lock";    onClicked: root.run("pidof hyprlock || hyprlock") }
-      MenuRow { icon: "󰤄"; label: "Suspend"; onClicked: root.run("systemctl suspend") }
-
-      MenuDivider {}
-
-      // Hyprland 0.55+ Lua syntax. If this ever fails, the blunt alternative is:
-      //   root.run("loginctl terminate-user $USER")
-      MenuRow {
-        icon: "󰍃"
-        label: root.pending === "logout" ? "Confirm logout" : "Logout"
-        iconColor: root.pending === "logout" ? root.danger : Colors.accent
-        onClicked: root.confirmThenRun("logout", "hyprctl dispatch 'hl.dsp.exit()'")
-      }
-      MenuRow {
-        icon: "󰜉"
-        label: root.pending === "reboot" ? "Confirm reboot" : "Reboot"
-        iconColor: root.pending === "reboot" ? root.danger : Colors.accent
-        onClicked: root.confirmThenRun("reboot", "systemctl reboot")
-      }
-      MenuRow {
+      MenuHeader {
         icon: "󰐥"
-        label: root.pending === "poweroff" ? "Confirm shutdown" : "Shutdown"
-        iconColor: root.pending === "poweroff" ? root.danger : Colors.accent
-        onClicked: root.confirmThenRun("poweroff", "systemctl poweroff")
+        title: root.hoveredLabel !== "" ? root.hoveredLabel : "Session"
+      }
+      MenuDivider {}
+
+      // Horizontal Row of Icon Buttons generated via Repeater
+      Row {
+        anchors.horizontalCenter: parent.horizontalCenter
+        spacing: 10
+
+        Repeater {
+          model: [
+            { icon: "󰌾", label: "Lock", key: "lock", cmd: "pidof hyprlock || hyprlock", destructive: false },
+            { icon: "󰤄", label: "Suspend", key: "suspend", cmd: "systemctl suspend", destructive: false },
+            { icon: "󰍃", label: "Logout", key: "logout", cmd: "hyprctl dispatch 'hl.dsp.exit()'", destructive: true },
+            { icon: "󰜉", label: "Reboot", key: "reboot", cmd: "systemctl reboot", destructive: true },
+            { icon: "󰐥", label: "Shutdown", key: "poweroff", cmd: "systemctl poweroff", destructive: true }
+          ]
+
+          delegate: Column {
+            id: btnRoot
+            spacing: 4
+            width: 54
+
+            property bool isPending: modelData.destructive && root.pending === modelData.key
+
+            Rectangle {
+              width: 54
+              height: 42
+              radius: 8
+              color: mouseArea.containsMouse ? Colors.surfaceHover : Colors.surface
+              border.color: btnRoot.isPending ? root.danger : "transparent"
+              border.width: btnRoot.isPending ? 1 : 0
+
+              Behavior on color { ColorAnimation { duration: Theme.animFast } }
+
+              Text {
+                anchors.centerIn: parent
+                font.family: "Hack Nerd Font"
+                font.pixelSize: 16
+                color: btnRoot.isPending ? root.danger : Colors.accent
+                text: modelData.icon
+              }
+
+              MouseArea {
+                id: mouseArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onEntered: root.hoveredLabel = modelData.label
+                onExited: root.hoveredLabel = ""
+                onClicked: {
+                  if (modelData.destructive) {
+                    root.confirmThenRun(modelData.key, modelData.cmd)
+                  } else {
+                    root.run(modelData.cmd)
+                  }
+                }
+              }
+            }
+
+            Text {
+              anchors.horizontalCenter: parent.horizontalCenter
+              font.pixelSize: 9
+              font.bold: btnRoot.isPending
+              color: btnRoot.isPending ? root.danger : Colors.textSecondary
+              text: btnRoot.isPending ? "Confirm" : modelData.label
+              elide: Text.ElideRight
+              width: parent.width
+              horizontalAlignment: Text.AlignHCenter
+            }
+          }
+        }
       }
     }
   }

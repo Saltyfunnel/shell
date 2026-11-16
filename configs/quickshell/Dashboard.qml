@@ -29,6 +29,11 @@ Item {
   readonly property bool connectivityShowing: openPopup === popupName && tab === 4
   onConnectivityShowingChanged: Connectivity.scanning = connectivityShowing
 
+  // same idea for the other data sources: they only run while their card is on screen
+  readonly property bool shown: openPopup === popupName
+  Binding { target: SystemStats; property: "active"; value: root.shown && root.tab === 2 }
+  Binding { target: MediaPlayers; property: "watching"; value: root.shown && (root.tab === 0 || root.tab === 1) }
+
   // Open the dashboard on a given tab. If it's already open, just switch tab.
   function openTab(n) {
     root.requestedTab = n
@@ -185,18 +190,20 @@ Item {
             }
           }
 
-          MediaPanel { visible: root.tab === 1; anchors.fill: parent }
-
-          PerformancePanel { visible: root.tab === 2; anchors.fill: parent }
-
-          WeatherPanel { visible: root.tab === 3; anchors.fill: parent }
-
-          ConnectivityPanel { visible: root.tab === 4; anchors.fill: parent }
-
-          CapturePanel {
-            visible: root.tab === 5
+          // tabs 1-5 are built only while selected, and freed when you leave or close the popup
+          Loader { anchors.fill: parent; active: root.shown && root.tab === 1; source: "MediaPanel.qml" }
+          Loader { anchors.fill: parent; active: root.shown && root.tab === 2; source: "PerformancePanel.qml" }
+          Loader { anchors.fill: parent; active: root.shown && root.tab === 3; source: "WeatherPanel.qml" }
+          Loader { anchors.fill: parent; active: root.shown && root.tab === 4; source: "ConnectivityPanel.qml" }
+          Loader {
+            id: captureLoader
             anchors.fill: parent
-            onCloseRequested: root.toggle(root.popupName)
+            active: root.shown && root.tab === 5
+            source: "CapturePanel.qml"
+            Connections {
+              target: captureLoader.item
+              function onCloseRequested() { root.toggle(root.popupName) }
+            }
           }
         }
       }

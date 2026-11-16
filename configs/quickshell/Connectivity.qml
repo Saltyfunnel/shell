@@ -1,5 +1,6 @@
 // Connectivity.qml — network (nmcli) and Bluetooth (bluetoothctl) state, shared by the dashboard.
-// Polls every 5 seconds; scans for Wi-Fi only while the Connectivity tab is showing.
+// No background polling: one check at start, then every 5 s only while the Connectivity tab
+// is showing (nothing in the bar needs this data).
 pragma Singleton
 import Quickshell
 import Quickshell.Io
@@ -131,13 +132,14 @@ Singleton {
   }
 
   Timer {
-    running: true; interval: 5000; repeat: true; triggeredOnStart: true
+    running: root.scanning; interval: 5000; repeat: true
     onTriggered: { netProc.running = true; btProc.running = true }
   }
+  Component.onCompleted: { netProc.running = true; btProc.running = true }
   // Wi-Fi scan: once at start (to learn if there is Wi-Fi), then only while the tab is showing
   Timer {
-    running: true; interval: 10000; repeat: true; triggeredOnStart: true
-    onTriggered: if (!root.wifiChecked || (root.hasWifi && root.scanning)) wifiProc.running = true
+    running: root.scanning || !root.wifiChecked; interval: 10000; repeat: true; triggeredOnStart: true
+    onTriggered: if (!root.wifiChecked || root.hasWifi) wifiProc.running = true
   }
   // Re-check shortly after you click something
   Timer {

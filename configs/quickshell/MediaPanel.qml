@@ -9,13 +9,6 @@ DashPanel {
 
   readonly property var player: MediaPlayers.active
 
-  // MPRIS doesn't push position updates, so ask for one each second while this is on screen
-  Timer {
-    running: MediaPlayers.playing && root.visible
-    interval: 1000
-    repeat: true
-    onTriggered: root.player?.positionChanged()
-  }
 
   // run cava only while music is playing and this tab is on screen
   Binding {
@@ -24,42 +17,11 @@ DashPanel {
     value: MediaPlayers.playing && root.visible
   }
 
-  // ---------- blurred cover as the panel background ----------
-  Image {
-    id: bgSrc
+  CoverBackdrop {
     anchors.fill: parent
-    visible: false
     source: root.player?.trackArtUrl ?? ""
-    fillMode: Image.PreserveAspectCrop
-    smooth: true
-    asynchronous: true
-  }
-
-  Item {
-    id: bgMask
-    visible: false
-    width: root.width
-    height: root.height
-    layer.enabled: true
-    layer.smooth: true
-    layer.samples: 4
-    Rectangle { anchors.fill: parent; radius: root.radius; color: "black" }
-  }
-
-  MultiEffect {
-    anchors.fill: parent
-    visible: root.player !== null && bgSrc.status === Image.Ready
-    source: bgSrc
-    autoPaddingEnabled: false
-    blurEnabled: true
-    blur: 1.0
-    blurMax: 64            // bigger = blurrier
-    brightness: -0.35      // darker = text stays readable
-    saturation: 0.3
-    maskEnabled: true
-    maskSource: bgMask
-    maskThresholdMin: 0.5
-    maskSpreadAtMin: 1.0
+    radius: root.radius
+    dim: -0.35
   }
 
   Text {
@@ -133,6 +95,8 @@ DashPanel {
       MultiEffect {
         id: disc
         anchors.fill: parent
+        layer.enabled: true          // render the masked art once, then just rotate the texture
+        layer.smooth: true
         source: discSrc
         autoPaddingEnabled: false
         maskEnabled: true

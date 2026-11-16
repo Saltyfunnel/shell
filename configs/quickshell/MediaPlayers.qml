@@ -6,6 +6,8 @@ import Quickshell.Services.Mpris
 import QtQuick
 
 Singleton {
+  id: root
+
   readonly property var active: {
     const list = Mpris.players.values
     for (let i = 0; i < list.length; i++) {
@@ -14,6 +16,16 @@ Singleton {
     return list.length > 0 ? list[0] : null
   }
   readonly property bool playing: active?.isPlaying ?? false
+
+  // Set by Dashboard.qml: true only while a media card is on screen.
+  // MPRIS doesn't push position updates, so ONE shared timer asks for them each second.
+  property bool watching: false
+  Timer {
+    running: root.watching && root.playing
+    interval: 1000
+    repeat: true
+    onTriggered: root.active?.positionChanged()
+  }
 
   function fmt(s) {
     s = Math.max(0, Math.floor(s))

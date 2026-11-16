@@ -13,50 +13,12 @@ DashPanel {
   // true  = they only appear while the mouse is over the art
   property bool overlayOnHover: false
 
-  Timer {
-    running: MediaPlayers.playing && root.visible
-    interval: 1000
-    repeat: true
-    onTriggered: root.player?.positionChanged()
-  }
 
-  // ---------- blurred cover as the card background ----------
-  Image {
-    id: bgSrc
+  CoverBackdrop {
     anchors.fill: parent
-    visible: false
     source: root.player?.trackArtUrl ?? ""
-    fillMode: Image.PreserveAspectCrop
-    smooth: true
-    asynchronous: true
-  }
-
-  // rounded-rectangle mask matching the card corners
-  Item {
-    id: bgMask
-    visible: false
-    width: root.width
-    height: root.height
-    layer.enabled: true
-    layer.smooth: true
-    layer.samples: 4
-    Rectangle { anchors.fill: parent; radius: root.radius; color: "black" }
-  }
-
-  MultiEffect {
-    anchors.fill: parent
-    visible: root.player !== null && bgSrc.status === Image.Ready
-    source: bgSrc
-    autoPaddingEnabled: false
-    blurEnabled: true
-    blur: 1.0
-    blurMax: 64            // bigger = blurrier
-    brightness: -0.3       // darker = text stays readable
-    saturation: 0.3
-    maskEnabled: true
-    maskSource: bgMask
-    maskThresholdMin: 0.5
-    maskSpreadAtMin: 1.0
+    radius: root.radius
+    dim: -0.3
   }
 
   Text {

@@ -1,5 +1,6 @@
 // SystemStats.qml — CPU / memory / disk / temperatures / battery readings, shared by the dashboard.
-// Samples every 2 seconds and keeps the last ~2 minutes of CPU and memory for the charts.
+// Samples every 2 seconds, but ONLY while the Performance tab is on screen (Dashboard.qml sets
+// `active`). Disk usage is re-read every 30 s only. Keeps the last ~2 minutes of CPU and memory for the charts.
 pragma Singleton
 import Quickshell
 import Quickshell.Io
@@ -8,6 +9,8 @@ import QtQuick
 
 Singleton {
   id: root
+
+  property bool active: false       // set by Dashboard.qml
 
   property real cpu: 0
   property real ram: 0
@@ -64,10 +67,11 @@ Singleton {
   // Sensors are found by NAME, not number (hwmon numbers differ between machines)
   Process {
     id: slowProc
-    command: ["sh", "-c",
-      "for d in /sys/class/hwmon/hwmon*; do n=$(cat $d/name 2>/dev/null); case $n in k10temp|coretemp|zenpower) echo cpu $(cat $d/temp1_input);; amdgpu|nouveau) echo gpu $(cat $d/temp1_input);; esac; done; "
+    property bool withDisk: false
+    command: ["sh", "-c", "withdisk=" + (withDisk ? 1 : 0) + "; "
+      + "for d in /sys/class/hwmon/hwmon*; do n=$(cat $d/name 2>/dev/null); case $n in k10temp|coretemp|zenpower) echo cpu $(cat $d/temp1_input);; amdgpu|nouveau) echo gpu $(cat $d/temp1_input);; esac; done; "
       + "for f in /sys/class/drm/card*/device/gpu_busy_percent; do [ -r $f ] && echo gpuload $(cat $f) && break; done; "
-      + "set -- $(df -B1 --output=used,size / | tail -1); echo disk $1 $2"]
+      + "if [ $withdisk = 1 ]; then set -- $(df -B1 --output=used,size / | tail -1); echo disk $1 $2; fi"]
     stdout: StdioCollector {
       onStreamFinished: {
         let c = -1, g = -1, gl = -1
@@ -88,14 +92,16 @@ Singleton {
     }
   }
 
+  property int tick: 0
   Timer {
-    running: true
+    running: root.active
     interval: 2000
     repeat: true
     triggeredOnStart: true
     onTriggered: {
       statFile.reload()
       memFile.reload()
+      slowProc.withDisk = (root.tick++ % 15 === 0)    // every 30 s
       slowProc.running = true
     }
   }

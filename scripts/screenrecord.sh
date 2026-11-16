@@ -1,5 +1,6 @@
 #!/bin/bash
 OUT_DIR="$HOME/Videos/Recordings"
+STATE="${XDG_RUNTIME_DIR:-/tmp}/recording-state"   # watched by Quickshell (Capture.qml)
 mkdir -p "$OUT_DIR"
 
 start_recording() {
@@ -9,12 +10,11 @@ start_recording() {
 
     notify-send "Screen Recorder" "Recording started..." -i media-record
     (
+        echo 1 > "$STATE"
         wf-recorder --geometry "$geom" -f "$file"
+        echo 0 > "$STATE"
         notify-send "Screen Recorder" "Recording saved." -i media-tape
-        refresh_bar
     ) &
-    sleep 0.3                        # let wf-recorder start so status sees it
-    refresh_bar
 }
 
 stop_recording() {

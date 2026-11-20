@@ -46,7 +46,9 @@ else
 fi
 echo "saturation=$sat scheme=$scheme"
 
-matugen image "$wall" -m dark -t "$scheme" --prefer saturation
+# Don't let a matugen error stop the script: the icon recolour below still has to run.
+matugen image "$wall" -m dark -t "$scheme" --prefer saturation \
+    || echo "warning: matugen reported an error (see above); carrying on" >&2
 # 3. Recolour the folder icons to match
 "$HOME/.config/scripts/recolor-icons.sh" "$(cat "$HOME/.cache/accent_color")"
 

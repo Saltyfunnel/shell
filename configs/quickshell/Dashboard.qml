@@ -1,4 +1,4 @@
-// Dashboard.qml — the clock in the bar; click it for a tabbed dashboard popup.
+// Dashboard.qml — the clock in the bar; click it for a dashboard popup with an icon sidebar.
 //   Dashboard : system info on top; clock, calendar, mixer and media card below
 //   Media     : big now-playing view
 //   Performance : CPU / memory charts, disk, temperatures, battery
@@ -6,7 +6,8 @@
 //   Connectivity : network + Wi-Fi list, Bluetooth devices
 //   Capture   : screenshots and screen recording
 //
-// The tab row also shows a pill with the pending pacman update count (click to update).
+// The tabs are a vertical column of icons on the left. At the bottom of that column sits a
+// pill with the pending pacman update count (click to update); it only shows when updates exist.
 //
 // Other bar modules can open a specific tab with  dashboard.openTab(n)
 //   0 Dashboard, 1 Media, 2 Performance, 3 Weather, 4 Connectivity, 5 Capture
@@ -23,7 +24,19 @@ Item {
 
   property int tab: 0
   property int requestedTab: 0      // the tab the popup opens on next time
-  readonly property var tabNames: ["Dashboard", "Media", "Performance", "Weather", "Connectivity", "Capture"]
+
+  // order here = tab index (keep in sync with the pages below).
+  // Icons are UTF-16 surrogate pairs: \U escapes are not valid inside JS arrays in QML.
+  readonly property var tabs: [
+    { name: "Dashboard",    icon: "\uDB81\uDD6E" },
+    { name: "Media",        icon: "\uDB80\uDF86" },
+    { name: "Performance",  icon: "\uDB81\uDCC5" },
+    { name: "Weather",      icon: "\uDB81\uDD95" },
+    { name: "Connectivity", icon: "\uDB81\uDDA9" },
+    { name: "Capture",      icon: "\uDB80\uDD00" }
+  ]
+
+  readonly property int sideWidth: 44
 
   // tell Connectivity.qml when its tab is on screen, so it only scans Wi-Fi then
   readonly property bool connectivityShowing: openPopup === popupName && tab === 4
@@ -60,8 +73,8 @@ Item {
     anchor.edges: Edges.Bottom
     anchor.gravity: Edges.Bottom
     visible: root.openPopup === root.popupName
-    implicitWidth: 780
-    implicitHeight: 440
+    implicitWidth: 780 + root.sideWidth + Theme.gap   // content area keeps its old width
+    implicitHeight: 398
     color: "transparent"
 
     onVisibleChanged: if (visible) { root.tab = root.requestedTab; calendar.reset() }
@@ -72,47 +85,79 @@ Item {
       radius: Theme.radiusLg
       color: Qt.alpha(Colors.surface, 0.9)
 
-      Column {
+      Row {
         anchors.fill: parent
         anchors.margins: Theme.pad
         spacing: Theme.gap
 
-        // ----- tab bar (tabs on the left, updates pill on the right) -----
-        Item {
-          id: tabBar
-          width: parent.width
-          height: 30
+        // ----- sidebar: icon tabs on top, updates pill at the bottom -----
+        DashPanel {
+          id: sideBar
+          z: 10                      // above the pages, so hover labels draw over them
+          width: root.sideWidth
+          height: parent.height
 
-          Row {
+          Column {
+            anchors.top: parent.top
+            anchors.topMargin: 4
+            anchors.horizontalCenter: parent.horizontalCenter
             spacing: 6
 
             Repeater {
-              model: root.tabNames
+              model: root.tabs
 
               Rectangle {
-                required property string modelData
+                id: tabBtn
+                required property var modelData
                 required property int index
                 readonly property bool active: root.tab === index
 
-                width: tabText.implicitWidth + 28
-                height: 30
-                radius: 15
-                color: active ? Colors.accent : "transparent"
+                width: 36
+                height: 36
+                radius: Theme.radiusSm
+                color: active ? Colors.accent
+                     : tabMouse.containsMouse ? Qt.alpha(Colors.accent, 0.15)
+                     : "transparent"
                 Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
                 Text {
-                  id: tabText
                   anchors.centerIn: parent
-                  text: modelData
-                  color: active ? Colors.surface : Colors.subtext
+                  text: tabBtn.modelData.icon
+                  color: tabBtn.active ? Colors.surface : Colors.subtext
                   font.family: Theme.font
-                  font.pixelSize: 13
-                  font.bold: active
+                  font.pixelSize: 18
                 }
                 MouseArea {
+                  id: tabMouse
                   anchors.fill: parent
+                  hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
-                  onClicked: root.tab = index
+                  onClicked: root.tab = tabBtn.index
+                }
+
+                // name label: appears to the right of the icon, over the page area (still inside the popup)
+                Rectangle {
+                  z: 100
+                  x: tabBtn.width + 12
+                  anchors.verticalCenter: parent.verticalCenter
+                  width: tipText.implicitWidth + 20
+                  height: 26
+                  radius: 13
+                  color: Colors.surface
+                  border.width: 1
+                  border.color: Colors.accent
+                  opacity: tabMouse.containsMouse ? 1 : 0
+                  visible: opacity > 0
+                  Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
+
+                  Text {
+                    id: tipText
+                    anchors.centerIn: parent
+                    text: tabBtn.modelData.name
+                    color: Colors.text
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                  }
                 }
               }
             }
@@ -121,32 +166,32 @@ Item {
           // updates pill: only shown when something is pending; click to update
           Rectangle {
             visible: Updates.total > 0
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            height: 26
-            width: pillRow.implicitWidth + 20
-            radius: 13
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 4
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 36
+            height: 44
+            radius: Theme.radiusSm
             color: "transparent"
             border.width: 1
             border.color: Colors.accent
 
-            Row {
-              id: pillRow
+            Column {
               anchors.centerIn: parent
-              spacing: 6
+              spacing: 1
               Text {
-                text: "󰚰"
+                text: "\U000f06b0"
                 color: Colors.accent
                 font.family: Theme.font
-                font.pixelSize: 13
-                anchors.verticalCenter: parent.verticalCenter
+                font.pixelSize: 16
+                anchors.horizontalCenter: parent.horizontalCenter
               }
               Text {
-                text: Updates.total + (Updates.total === 1 ? " update" : " updates")
+                text: Updates.total
                 color: Colors.text
                 font.family: Theme.font
-                font.pixelSize: 12
-                anchors.verticalCenter: parent.verticalCenter
+                font.pixelSize: 11
+                anchors.horizontalCenter: parent.horizontalCenter
               }
             }
 
@@ -160,8 +205,8 @@ Item {
 
         // ----- pages -----
         Item {
-          width: parent.width
-          height: parent.height - tabBar.height - Theme.gap
+          width: parent.width - root.sideWidth - Theme.gap
+          height: parent.height
 
           // Dashboard: top row, then clock + calendar + mixer + media
           Column {

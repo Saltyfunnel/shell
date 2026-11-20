@@ -14,12 +14,12 @@ output_path = "~/.config/gtk-4.0/gtk.css"
 [templates.kitty]
 input_path  = "~/.config/matugen/templates/kitty.conf"
 output_path = "~/.config/kitty/colors.conf"
-post_hook   = "pkill -USR1 kitty"
+post_hook   = "pkill -USR1 kitty || true"
 
 [templates.mako]
 input_path  = "~/.config/matugen/templates/mako-config"
 output_path = "~/.config/mako/config"
-post_hook   = "makoctl reload"
+post_hook   = "makoctl reload || true"
 
 [templates.quickshell]
 input_path  = "~/.config/matugen/templates/Colors.qml"
@@ -28,7 +28,7 @@ output_path = "~/.config/quickshell/Colors.qml"
 [templates.hyprland]
 input_path  = "~/.config/matugen/templates/hypr-colors.lua"
 output_path = "~/.config/hypr/colors.lua"
-post_hook   = "hyprctl reload"
+post_hook   = "hyprctl reload || true"
 
 [templates.accent]
 input_path  = "~/.config/matugen/templates/accent.txt"
@@ -61,7 +61,7 @@ output_path = "/var/cache/wal/colors.json"
 [templates.btop]
 input_path = '~/.config/matugen/templates/btop.theme'
 output_path = '~/.config/btop/themes/matugen.theme'
-post_hook = 'pkill -SIGUSR2 btop'
+post_hook = 'pkill -SIGUSR2 btop || true'
 
 [templates.cava]
 input_path = '~/.config/matugen/templates/cava-theme'

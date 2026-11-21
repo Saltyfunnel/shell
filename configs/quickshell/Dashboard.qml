@@ -180,7 +180,7 @@ Item {
               anchors.centerIn: parent
               spacing: 1
               Text {
-                text: "\U000f06b0"
+                text: "\uDB81\uDEB0"
                 color: Colors.accent
                 font.family: Theme.font
                 font.pixelSize: 16
